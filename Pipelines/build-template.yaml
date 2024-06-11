@@ -1,0 +1,95 @@
+﻿variables:
+- template: variables.yaml
+
+stages:
+  - stage: M365DSCBuild
+    displayName: 'M365DSC build'
+    jobs:
+    - job: CompileConfiguration
+      displayName: 'Compile configuration MOF files'
+      steps:
+      # Clone the Data repository
+      - checkout: self
+        clean: true
+        fetchDepth: 0
+        persistCredentials: true
+        path: ./s/Data
+
+      # Clone the CICD repository
+      - checkout: M365DSC_CICD
+        clean: true
+        fetchDepth: 1
+        persistCredentials: true
+        path: ./s/CICD
+
+      # Configure the MaxEnvelopeSize of WinRM
+      - task: CmdLine@2
+        displayName: 'Configure WinRM'
+        inputs:
+          script: |
+            @echo off
+            call winrm invoke restore winrm/config
+            call winrm quickconfig -quiet
+            call winrm set winrm/config @{MaxEnvelopeSizekb="4096"} > null
+            call winrm get winrm/config | find /i "MaxEnvelopeSizekb"
+
+      # Make sure all required modules are installed
+      - task: PowerShell@2
+        displayName: 'Prepare Agent (Install Modules)'
+        inputs:
+          targetType: 'filePath'
+          filePath: './CICD/Scripts/DeployModules.ps1'
+          arguments: '-PackageSourceLocation "${{ variables.packageSourceLocation }}" -PATToken "${{ variables.patToken }}"'
+          errorActionPreference: 'Stop'
+          failOnStderr: true
+
+      # Check if all required Secrets/Certificates exist in the KeyVault
+      - task: AzurePowerShell@5
+        displayName: 'Validate Secrets'
+        inputs:
+          ScriptType: 'FilePath'
+          ScriptPath: './CICD/Scripts/ValidateSecrets.ps1'
+          ScriptArguments: '-KeyVault "${{ variables.keyVault }}"'
+          azurePowerShellVersion: 'latestVersion'
+          azureSubscription: '${{ variables.azureSubscription }}'
+          errorActionPreference: 'Stop'
+          FailOnStandardError: true
+
+      # Run all pre-Build QA tests, to make sure the data is valid
+      - task: PowerShell@2
+        displayName: 'Pre Build (Merge and Test Data Files)'
+        inputs:
+          targetType: 'filePath'
+          filePath: './CICD/Scripts/PreBuild.ps1'
+          errorActionPreference: 'Stop'
+          failOnStderr: true
+
+      # Run the Build task and compile the MOF files
+      - task: PowerShell@2
+        displayName: 'Compile Artifacts'
+        inputs:
+          targetType: 'filePath'
+          filePath: './CICD/Scripts/Build.ps1'
+          errorActionPreference: 'Stop'
+          failOnStderr: true
+
+      # Run the post-Build task and configure the DevOps
+      # settings that are needed during Deployment correctly
+      - task: PowerShell@2
+        displayName: 'Post Build (Update Environments)'
+        inputs:
+          targetType: 'filePath'
+          filePath: './CICD/Scripts/PostBuild.ps1'
+          errorActionPreference: 'Stop'
+          failOnStderr: false
+        env:
+          SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+      # Publish all created artifacts to the pipeline
+      - task: PublishPipelineArtifact@1
+        displayName: 'Publish Artifacts to Pipeline'
+        inputs:
+          targetPath: '${{ variables.buildFolderName }}/'
+          artifact: 'DeployPackage'
+          publishLocation: 'pipeline'
+          parallel: true

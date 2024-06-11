@@ -1,0 +1,83 @@
+﻿variables:
+- template: variables.yaml
+
+resources:
+  pipelines:
+  - pipeline: M365Automation
+    source: 'M365DSC Build MOF'
+    branch: main
+    trigger: none
+
+stages:
+- stage: M365DSCComplianceCheck
+  displayName: 'Microsoft365DSC compliance check'
+  dependsOn: []
+  jobs:
+  - job: CheckCompliance
+    displayName: 'Check compliance'
+    dependsOn: []
+    steps:
+    # Clone the Data repository
+    - checkout: self
+      clean: true
+      fetchDepth: 0
+      persistCredentials: true
+      path: ./s/Data
+
+    # Clone the CICD repository
+    - checkout: M365DSC_CICD
+      clean: true
+      fetchDepth: 1
+      persistCredentials: true
+      path: ./s/CICD
+
+    # Download the pipeline artifacts
+    - download: M365Automation
+      displayName: 'Download Artifact'
+
+    # Configure the MaxEnvelopeSize of WinRM
+    - task: CmdLine@2
+      displayName: 'Configure WinRM'
+      inputs:
+        script: |
+          @echo off
+          call winrm invoke restore winrm/config
+          call winrm quickconfig -quiet
+          call winrm set winrm/config @{MaxEnvelopeSizekb="4096"} > null
+          call winrm get winrm/config | find /i "MaxEnvelopeSizekb"
+
+    # Make sure all required modules are installed
+    - task: AzurePowerShell@5
+      displayName: 'Prepare modules'
+      inputs:
+        ScriptType: 'FilePath'
+        ScriptPath: './CICD/Scripts/DeployModules.ps1'
+        ScriptArguments: '-PackageSourceLocation "${{ variables.packageSourceLocation }}" -PATToken "${{ variables.patToken }}" -DeployM365Prerequisites -BlobResourceGroup "${{ variables.blobResourceGroup }}" -BlobStorageAccount "${{ variables.blobStorageAccount }}" -BlobContainer "${{ variables.blobContainer }}"'
+        azurePowerShellVersion: 'latestVersion'
+        azureSubscription: '${{ variables.azureSubscription }}'
+        errorActionPreference: 'Stop'
+        FailOnStandardError: false
+
+    # Make sure all Secrets/Certificates are downloaded from the KeyVault and installed
+    - task: AzurePowerShell@5
+      displayName: 'Download secrets'
+      inputs:
+        ScriptType: 'FilePath'
+        ScriptPath: './CICD/Scripts/DownloadSecrets.ps1'
+        ScriptArguments: '-KeyVault "${{ variables.keyVault }}"'
+        azurePowerShellVersion: 'latestVersion'
+        azureSubscription: '${{ variables.azureSubscription }}'
+        errorActionPreference: 'Stop'
+        FailOnStandardError: true
+
+    # Check all Microsoft 365 tenants for deviations with the compiled MOF files
+    - task: PowerShell@2
+      displayName: 'Check configuration deviations'
+      inputs:
+        targetType: 'filePath'
+        filePath: '$(Pipeline.Workspace)/M365Automation/DeployPackage/CheckDscCompliance.ps1'
+        arguments: '-UseMail:$${{ variables.useMail }} -MailTenantId "${{ variables.mailTenantId }}" -MailAppId "${{ variables.mailAppId }}" -MailAppSecret "${{ variables.mailAppSecret }}" -MailFrom "${{ variables.mailFrom }}" -MailTo "${{ variables.mailTo }}" -UseTeams:$${{ variables.useTeams }} -TeamsWebhook "${{ variables.teamsWebhook }}"'
+        errorActionPreference: 'Stop'
+        failOnStderr: false
+        workingDirectory: '$(Pipeline.Workspace)/M365Automation/DeployPackage'
+      continueOnError: true

@@ -1,0 +1,83 @@
+﻿parameters:
+- name: Environments
+  type: object
+
+variables:
+- template: variables.yaml
+
+stages:
+- ${{ each env in parameters.Environments }}:
+  - stage: M365DSCDeployment_${{ env.Name }}
+    displayName: "'${{ env.Name }}' M365 Deployment"
+    ${{ if eq(env.DependsOn, '') }}:
+      dependsOn: []
+    ${{ else }}:
+      dependsOn: M365DSCDeployment_${{ env.DependsOn }}
+    jobs:
+    - deployment: Deploy_${{ env.Name }}
+      displayName: "Deploy ${{ env.Name }}"
+      dependsOn: []
+      environment: ${{ env.Name }}
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+            # Clone the Data repository
+            - checkout: self
+              clean: true
+              fetchDepth: 1
+              persistCredentials: true
+              path: ./s/Data
+
+            # Clone the CICD repository
+            - checkout: M365DSC_CICD
+              clean: true
+              fetchDepth: 1
+              persistCredentials: true
+              path: ./s/CICD
+
+            # Configure the MaxEnvelopeSize of WinRM
+            - task: CmdLine@2
+              displayName: 'Configure WinRM'
+              inputs:
+                script: |
+                  @echo off
+                  call winrm invoke restore winrm/config
+                  call winrm quickconfig -quiet
+                  call winrm set winrm/config @{MaxEnvelopeSizekb="4096"} > null
+                  call winrm get winrm/config | find /i "MaxEnvelopeSizekb"
+
+            # Make sure all required modules are installed
+            - task: AzurePowerShell@5
+              displayName: 'Prepare Modules'
+              inputs:
+                ScriptType: 'FilePath'
+                ScriptPath: './CICD/Scripts/DeployModules.ps1'
+                ScriptArguments: '-PackageSourceLocation "${{ variables.packageSourceLocation }}" -PATToken "${{ variables.patToken }}" -DeployM365Prerequisites -BlobResourceGroup "${{ variables.blobResourceGroup }}" -BlobStorageAccount "${{ variables.blobStorageAccount }}" -BlobContainer "${{ variables.blobContainer }}"'
+                azurePowerShellVersion: 'latestVersion'
+                azureSubscription: '${{ variables.azureSubscription }}'
+                errorActionPreference: 'Stop'
+                FailOnStandardError: false
+
+            # Make sure all Secrets/Certificates are downloaded from the KeyVault and installed
+            - task: AzurePowerShell@5
+              displayName: 'Download Secrets'
+              inputs:
+                ScriptType: 'FilePath'
+                ScriptPath: './CICD/Scripts/DownloadSecrets.ps1'
+                ScriptArguments: '-KeyVault "${{ variables.keyVault }}" -Environment "${{ env.Name }}"'
+                azurePowerShellVersion: 'latestVersion'
+                azureSubscription: '${{ variables.azureSubscription }}'
+                errorActionPreference: 'Stop'
+                FailOnStandardError: true
+
+            # Deploy the MOF file to the Microsoft 365 tenant
+            - task: PowerShell@2
+              displayName: 'Deploy Configurations'
+              inputs:
+                targetType: 'filePath'
+                filePath: '$(Pipeline.Workspace)/M365Automation/DeployPackage/Deploy.ps1'
+                arguments: '-Environment "${{ env.Name }}"'
+                errorActionPreference: 'Stop'
+                failOnStderr: true
+                workingDirectory: '$(Pipeline.Workspace)/M365Automation/DeployPackage'

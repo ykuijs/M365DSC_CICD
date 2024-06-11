@@ -1,0 +1,14 @@
+﻿# All files are checked out using CRLF locally, and are checked into the repo with LF
+* text=auto eol=crlf
+
+# Ensure any exe files are treated as binary
+*.cer binary
+*.dll binary
+*.exe binary
+*.jpg binary
+*.pdb binary
+*.pdf binary
+*.pfx binary
+*.png binary
+*.so  binary
+*.xl* binary

@@ -1,0 +1,54 @@
+﻿variables:
+- template: variables.yaml
+
+stages:
+  - stage: M365DSCPRValidation
+    displayName: 'M365DSC PR Validation'
+    jobs:
+    - job: ValidatePullRequest
+      displayName: 'Validate Pull Request'
+      steps:
+      # Clone the Data repository
+      - checkout: self
+        clean: true
+        fetchDepth: 0
+        persistCredentials: true
+        path: ./s/Data
+
+      # Clone the CICD repository
+      - checkout: M365DSC_CICD
+        clean: true
+        fetchDepth: 1
+        persistCredentials: true
+        path: ./s/CICD
+
+      # Make sure all required modules are installed
+      - task: PowerShell@2
+        displayName: 'Prepare Agent (Install Modules)'
+        inputs:
+          targetType: 'filePath'
+          filePath: './CICD/Scripts/DeployModules.ps1'
+          arguments: '-PackageSourceLocation "${{ variables.packageSourceLocation }}" -PATToken "${{ variables.patToken }}"'
+          errorActionPreference: 'Stop'
+          failOnStderr: true
+
+      # Check if all required Secrets/Certificates exist in the KeyVault
+      - task: AzurePowerShell@5
+        displayName: 'Validate Secrets'
+        inputs:
+          ScriptType: 'FilePath'
+          ScriptPath: './CICD/Scripts/ValidateSecrets.ps1'
+          ScriptArguments: '-KeyVault "${{ variables.keyVault }}"'
+          azurePowerShellVersion: 'latestVersion'
+          azureSubscription: '${{ variables.azureSubscription }}'
+          errorActionPreference: 'Stop'
+          FailOnStandardError: true
+
+      # Run all pre-Build QA tests, to make sure the data is valid
+      - task: PowerShell@2
+        displayName: 'Pre Build (Merge and Test Data Files)'
+        inputs:
+          targetType: 'filePath'
+          filePath: './CICD/Scripts/PreBuild.ps1'
+          errorActionPreference: 'Stop'
+          failOnStderr: true

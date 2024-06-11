@@ -1,0 +1,153 @@
+﻿# ======== MODIFY VALUES IN THIS SECTION IF NEEDED =========
+# ==========================================================
+parameters:
+- name: AzureSubscription
+  type: string
+  # Name of the service connection that is used for accessing Azure KeyVault and Blob Storage
+  default: AzureConnection
+
+# ------------ SECTION: Generic modules -------------
+- name: PackageSourceLocation
+  type: string
+  # URL of the central generic package feed
+  # Fill it only if you download the generic modules from a custom NuGet repository!
+  # Otherwise, leave it empty!
+  # default: 'https://pkgs.dev.azure.com/Coolworx/ab16a702-b956-4e26-86f1-e760748fb8e6/_packaging/M365DSC_Generic_Modules/nuget/v2'
+  default:
+
+- name: PATToken
+  type: string
+  # Your PAT token that allows access to the generic package feed
+  # Fill it only if you download the generic modules from a custom NuGet repository that requires an access token!
+  # Otherwise, leave it empty!
+  # default:
+  default:
+# ---------------------------------------------------
+
+# ----------- SECTION: Azure Blob Storage -----------
+- name: BlobResourceGroup
+  type: string
+  # Name of your Azure resource group that contains the storage account to store the cached modules
+  default: M365DSC
+
+- name: BlobStorageAccount
+  type: string
+  # Name of your storage account within the Azure resource group to store the cached modules
+  default: m365dscblobs
+
+- name: BlobContainer
+  type: string
+  # Name of the container within the storage account to store the cached modules
+  default: dependency-modules
+# ---------------------------------------------------
+
+# ------------- SECTION: Azure KeyVault -------------
+- name: KeyVault
+  type: string
+  # Name of the Azure KeyVault that stores Microsoft365DSC secrets (certificates, passwords etc.)
+  default: KeyVault-M365DSC
+# ---------------------------------------------------
+
+# ----- SECTION: Compliance check notifications -----
+- name: UseMail
+  type: boolean
+  # Use email notifications
+  default: false
+
+- name: MailTenantId
+  type: string
+  # Name of the tenant with the email application configured
+  # Only applicable if UseMail is set to true!
+  default:
+
+- name: MailAppId
+  type: string
+  # Application ID of the email application
+  # Only applicable if UseMail is set to true!
+  default:
+
+- name: MailAppSecret
+  type: string
+  # Password secret to the email application
+  # Only applicable if UseMail is set to true!
+  default:
+
+- name: MailFrom
+  type: string
+  # Sender email address
+  # Only applicable if UseMail is set to true!
+  default:
+
+- name: MailTo
+  type: string
+  # Recipient email address
+  # Only applicable if UseMail is set to true!
+  default:
+
+- name: UseTeams
+  type: boolean
+  # Use Teams notifications
+  default: true
+
+- name: TeamsWebhook
+  type: string
+  # Teams Webhook URL
+  # Only applicable if UseTeams is set to true!
+  default:
+# ---------------------------------------------------
+
+# ==========================================================
+
+# ============== DO NOT MODIFY THIS SECTION! ===============
+# ==========================================================
+# Define global variables
+variables:
+- name: azureSubscription
+  value: ${{ parameters.AzureSubscription }}
+  readonly: true
+- name: patToken
+  value: ${{ parameters.PATToken }}
+  readonly: true
+- name: packageSourceLocation
+  value: ${{ parameters.PackageSourceLocation }}
+  readonly: true
+- name: blobResourceGroup
+  value: ${{ parameters.BlobResourceGroup }}
+  readonly: true
+- name: blobStorageAccount
+  value: ${{ parameters.BlobStorageAccount }}
+  readonly: true
+- name: blobContainer
+  value: ${{ parameters.BlobContainer }}
+  readonly: true
+- name: keyVault
+  value: ${{ parameters.KeyVault }}
+  readonly: true
+- name: useMail
+  value: ${{ parameters.UseMail }}
+  readonly: true
+- name: mailTenantId
+  value: ${{ parameters.MailTenantId }}
+  readonly: true
+- name: mailAppId
+  value: ${{ parameters.MailAppId }}
+  readonly: true
+- name: mailAppSecret
+  value: ${{ parameters.MailAppSecret }}
+  readonly: true
+- name: mailFrom
+  value: ${{ parameters.MailFrom }}
+  readonly: true
+- name: mailTo
+  value: ${{ parameters.MailTo }}
+  readonly: true
+- name: useTeams
+  value: ${{ parameters.UseTeams }}
+  readonly: true
+- name: teamsWebhook
+  value: ${{ parameters.TeamsWebhook }}
+  readonly: true
+- name: buildFolderName
+  value: Output
+  readonly: true
+# ==========================================================
