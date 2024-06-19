@@ -754,6 +754,13 @@ function Install-GenericModules
             $parameters.Add('Credential', $credsAzureDevopsServices)
         }
 
+        # Add SkipPublisherCheck for Pester module.
+        # More info: https://github.com/pester/Pester?tab=readme-ov-file#signing-certificates
+        if ($module.Name -eq 'Pester')
+        {
+            $parameters.Add('SkipPublisherCheck', $true)
+        }
+
         Install-Module @parameters
 
     }

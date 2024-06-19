@@ -3,6 +3,7 @@
     $rootDirectoryCICD = Split-Path -Path (Split-Path -Path $workingDirectoryCICD -Parent) -Parent
     $rootDirectoryData = Join-Path -Path (Split-Path -Path $rootDirectoryCICD -Parent) -ChildPath 'Data'
     $dataFilesPath = Join-Path -Path $rootDirectoryData -ChildPath 'DataFiles' -Resolve
+    $envDataFilesPath = Join-Path -Path $dataFilesPath -ChildPath 'Environments' -Resolve
 
 	# If there is no DataFiles folder, exit.
 	if (-not (Test-Path -Path $dataFilesPath))
@@ -22,6 +23,9 @@
 			DataFileDescriptiveName = Join-Path -Path (Split-Path $dataFile.Directory -Leaf) -ChildPath (Split-Path $dataFile -Leaf)
 		}
 	}
+
+    $envFiles = Get-ChildItem -Path $envDataFilesPath -File -Recurse -Include *.psd1
+    $allEnvFileName = $envFiles | ForEach-Object { @{ BaseName = $_.BaseName; FolderName = $_.Directory.Name } }
 
     $filesInDataRepo = @()
     $items = Get-ChildItem -Path $rootDirectoryData -Recurse -File -Exclude ".git*" | Where-Object { $_.DirectoryName -notlike '*.vscode*' }
@@ -48,7 +52,6 @@ Describe 'Check if all data files are valid' {
 	It 'Import of data file <DataFileDescriptiveName> is successful' -TestCases $dataFilesToTest {
         $content = Get-Content -Path $DataFile -Raw
         $data = [Scriptblock]::Create($content)
-        #$data = Import-PowerShellDataFile -Path $DataFile -ErrorAction SilentlyContinue
 		$data | Should -Not -BeNullOrEmpty
 	}
 }
@@ -60,6 +63,12 @@ Describe 'Check if all files have the correct encoding' {
 
     It 'Check if encoding of <Name> in CICD is UTF8 with BOM' -TestCases $filesInCICDRepo {
         (Test-IsUTF8WithBOM -Path $FullName) | Should -Be $true
+	}
+}
+
+Describe 'Check if all Environment specific files follow the naming standard' {
+	It 'Check if <BaseName>.psd1 has the correct naming' -TestCases $allEnvFileName {
+        ($BaseName -split '#')[0] | Should -Be $FolderName
 	}
 }
 
