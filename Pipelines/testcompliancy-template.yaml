@@ -3,8 +3,8 @@
 
 resources:
   pipelines:
-  - pipeline: M365Automation
-    source: 'M365DSC Build MOF'
+  - pipeline: Build MOF
+    source: 'Build MOF'
     branch: main
     trigger: none
 
@@ -32,7 +32,7 @@ stages:
       path: ./s/CICD
 
     # Download the pipeline artifacts
-    - download: M365Automation
+    - download: Build MOF
       displayName: 'Download Artifact'
 
     # Configure the MaxEnvelopeSize of WinRM
@@ -75,9 +75,9 @@ stages:
       displayName: 'Check configuration deviations'
       inputs:
         targetType: 'filePath'
-        filePath: '$(Pipeline.Workspace)/M365Automation/DeployPackage/CheckDscCompliance.ps1'
+        filePath: '$(Pipeline.Workspace)/Build MOF/DeployPackage/CheckDscCompliance.ps1'
         arguments: '-UseMail:$${{ variables.useMail }} -MailTenantId "${{ variables.mailTenantId }}" -MailAppId "${{ variables.mailAppId }}" -MailAppSecret "${{ variables.mailAppSecret }}" -MailFrom "${{ variables.mailFrom }}" -MailTo "${{ variables.mailTo }}" -UseTeams:$${{ variables.useTeams }} -TeamsWebhook "${{ variables.teamsWebhook }}"'
         errorActionPreference: 'Stop'
         failOnStderr: false
-        workingDirectory: '$(Pipeline.Workspace)/M365Automation/DeployPackage'
+        workingDirectory: '$(Pipeline.Workspace)/Build MOF/DeployPackage'
       continueOnError: true

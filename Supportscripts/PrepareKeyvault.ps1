@@ -124,6 +124,7 @@ begin
     if ($null -ne $psISE)
     {
         Write-Log -Message "Use of the PowerShell ISE is not supported. Please use a PowerShell window!" -Type 'Error'
+        exit
     }
 }
 

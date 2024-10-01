@@ -207,7 +207,7 @@ foreach ($environment in $envsConfig)
     Write-Log -Object 'Merging basic config with environment-specific config'
     $mergedConfigDataNode = Merge-ObjectGraph -InputObject $environment.Config -Template $basicConfigNode -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId'
 
-    $psdStringData = $mergedConfigDataNode | Sort-ObjectGraph -PrimaryKey 'NodeName', 'Identity', 'UniqueId' -MaxDepth 20 | ConvertTo-Expression
+    $psdStringData = $mergedConfigDataNode | Sort-ObjectGraph -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId', 'Priority' -MaxDepth 20 | ConvertTo-Expression
     $originalPsdPath = Join-Path -Path $outputPathDataFile -ChildPath "$($environment.Name)_Original.psd1"
     Set-Content -Path $originalPsdPath -Value $psdStringData
 
@@ -223,7 +223,7 @@ foreach ($environment in $envsConfig)
     }
     $mergedConfigDataNode = [System.Management.Automation.PSSerializer]::Deserialize($Obj_Result_Serialized)
 
-    $psdStringData = $mergedConfigDataNode | Sort-ObjectGraph -PrimaryKey 'NodeName', 'Identity', 'UniqueId' -MaxDepth 20 | ConvertTo-Expression
+    $psdStringData = $mergedConfigDataNode | Sort-ObjectGraph -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId', 'Priority' -MaxDepth 20 | ConvertTo-Expression
     $finalPsdPath = Join-Path -Path $outputPathDataFile -ChildPath "$($environment.Name).psd1"
     Set-Content -Path $finalPsdPath -Value $psdStringData
 

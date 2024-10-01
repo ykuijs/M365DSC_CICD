@@ -95,7 +95,7 @@
             }
         }
 
-        if ($null -ne $sharepointAppCreds -and $null -ne $ConfigurationData.NonNodeData.Environment.UsedWorkloads.SharePoint -eq $true)
+        if ($null -ne $sharepointAppCreds -and $ConfigurationData.NonNodeData.Environment.UsedWorkloads.SharePoint -eq $true)
         {
             SharePoint 'SharePoint_Configuration'
             {

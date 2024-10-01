@@ -35,7 +35,7 @@ param (
 ######## SCRIPT VARIABLES ########
 
 $workingDirectoryCICD = $PSScriptRoot
-$workingDirectoryData = Join-Path -Path $workingDirectoryCICD -ChildPath '..\..\..\M365Automation\DeployPackage' -Resolve
+$workingDirectoryData = Join-Path -Path $workingDirectoryCICD -ChildPath '..\..\..\Build MOF\DeployPackage' -Resolve
 
 ######## START SCRIPT ########
 Set-Location -Path $workingDirectoryCICD

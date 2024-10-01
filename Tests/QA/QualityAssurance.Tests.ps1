@@ -28,7 +28,7 @@
     $allEnvFileName = $envFiles | ForEach-Object { @{ BaseName = $_.BaseName; FolderName = $_.Directory.Name } }
 
     $filesInDataRepo = @()
-    $items = Get-ChildItem -Path $rootDirectoryData -Recurse -File -Exclude ".git*" | Where-Object { $_.DirectoryName -notlike '*.vscode*' }
+    $items = Get-ChildItem -Path $rootDirectoryData -Exclude ".git*","Supportscripts",".vscode*" | Get-ChildItem -Recurse -File
     foreach ($item in $items)
     {
         $filesInDataRepo += @{
@@ -38,7 +38,7 @@
     }
 
     $filesInCICDRepo = @()
-    $items = Get-ChildItem -Path $rootDirectoryCICD -Recurse -File -Exclude ".git*" | Where-Object { $_.DirectoryName -notlike '*.vscode*' }
+    $items = Get-ChildItem -Path $rootDirectoryCICD -Exclude ".git*","Supportscripts",".vscode*" | Get-ChildItem -Recurse -File
     foreach ($item in $items)
     {
         $filesInCICDRepo += @{

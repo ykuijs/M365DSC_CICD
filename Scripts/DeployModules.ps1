@@ -78,7 +78,7 @@ $rootDirectoryCICD = Split-Path -Path $workingDirectoryCICD
 if ($DeployM365Prerequisites)
 {
     # Deploy phase
-    $workingDirectoryData = Join-Path -Path $rootDirectoryCICD -ChildPath '..\..\M365Automation\DeployPackage' -Resolve
+    $workingDirectoryData = Join-Path -Path $rootDirectoryCICD -ChildPath '..\..\Build MOF\DeployPackage' -Resolve
     $prerequisitesPath = Join-Path -Path $workingDirectoryData -ChildPath 'DscResources.psd1' -Resolve
 }
 else

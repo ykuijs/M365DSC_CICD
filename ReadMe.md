@@ -1,9 +1,11 @@
-﻿# Microsoft 365 Automation Demo using Microsoft365Dsc
+﻿# Microsoft 365 Automation using Microsoft365Dsc and Azure DevOps
 
-For more info, checkout [this whitepaper](https://aka.ms/m365dscwhitepaper).
 
-This is the repository for the CICD Framework, which is cloned during a deployment.
-The template for this repository is found [here](https://github.com/ykuijs/M365DSC_CICD).
+This repository is used in combination with the Data Files Framework, which you can find [here](https://github.com/ykuijs/M365DSC_Data).
+
+Together they make up the solution with which you are able to implement automated management of Microsoft 365 using [Microsoft365Dsc](https://microsoft365.com) and [Azure DevOps](https://dev.azure.com). The required steps, prerequisites and all needed information can be found in [this whitepaper](https://aka.ms/m365dscwhitepaper).
+
+This is [the repository](https://github.com/ykuijs/M365DSC_CICD) for the CICD Framework scripts. During a deployment, it is cloned by the Data pipelines to retrieve the framework logic. The repository for the Data Files Framework can be found [here](https://github.com/ykuijs/M365DSC_Data).
 
 # Changelog
 

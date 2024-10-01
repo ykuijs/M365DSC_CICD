@@ -76,8 +76,8 @@ stages:
               displayName: 'Deploy Configurations'
               inputs:
                 targetType: 'filePath'
-                filePath: '$(Pipeline.Workspace)/M365Automation/DeployPackage/Deploy.ps1'
+                filePath: '$(Pipeline.Workspace)/Build MOF/DeployPackage/Deploy.ps1'
                 arguments: '-Environment "${{ env.Name }}"'
                 errorActionPreference: 'Stop'
                 failOnStderr: true
-                workingDirectory: '$(Pipeline.Workspace)/M365Automation/DeployPackage'
+                workingDirectory: '$(Pipeline.Workspace)/Build MOF/DeployPackage'

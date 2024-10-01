@@ -758,11 +758,11 @@ function Install-GenericModules
         # More info: https://github.com/pester/Pester?tab=readme-ov-file#signing-certificates
         if ($module.Name -eq 'Pester')
         {
+            Write-Log -Object "  Adding SkipPublisherCheck parameter, required for Pester."
             $parameters.Add('SkipPublisherCheck', $true)
         }
 
         Install-Module @parameters
-
     }
 
     $progressPreference = $oldProgressPreference
