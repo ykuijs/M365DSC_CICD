@@ -12,10 +12,6 @@
     data files as input data. The script also performs quality checks on the data files,
     to make sure the data is correct and valid.
 
-.PARAMETER SortObject
-    When specified, the merged output is sorted alphabetically. This is a time consuming
-    task, so should only be used when the solution only contains a few environments.
-
 .EXAMPLE
     .\build.ps1
 #>
@@ -23,11 +19,7 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Write-Host needed for Azure DevOps logging')]
 [CmdletBinding()]
 param
-(
-    [Parameter()]
-    [Switch]
-    $SortOutput
-)
+()
 
 ######## SCRIPT VARIABLES ########
 $configFileSeparator = '#'
@@ -41,6 +33,8 @@ $qaTestPath = Join-Path -Path $testsFolder -ChildPath 'Run-QATests.ps1' -Resolve
 $qaCheckErrors = $false
 
 $excludeAvailableAsResource = @('*UniqueId','*IsSingleInstance','NonNodeData.Environment.Tokens*')
+$mergeKeys = @('NodeName', 'Identity', 'Id', 'UniqueId', 'SettingDefinitionId')
+$sortKeys = @('Priority')
 
 ######## START SCRIPT ########
 
@@ -119,7 +113,7 @@ foreach ($mandatoryConfigFile in $mandatoryConfigFiles)
         }
         else
         {
-            Write-Log -Object '  Tests passed!'
+            Write-Log -Object '  All tests have passed!'
         }
 
         $mandatoryConfigNode = Get-Node -InputObject $mandatoryConfig
@@ -130,7 +124,7 @@ foreach ($mandatoryConfigFile in $mandatoryConfigFiles)
         Write-Log -Object "Merging file: $($mandatoryConfigFile.Name)"
         Write-Log -Object '----------------------------------------------------'
         $mandatoryConfigNextFragment = Import-PSDataFile $mandatoryConfigFile.Fullname
-
+        
         Write-Log -Object '  Testing if data adheres to the data schema'
         $mandatoryTestResults = $null
         $mandatoryTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $mandatoryConfigNextFragment -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
@@ -141,13 +135,13 @@ foreach ($mandatoryConfigFile in $mandatoryConfigFiles)
         }
         else
         {
-            Write-Log -Object '  Tests passed!'
+            Write-Log -Object '  All tests have passed!'
         }
 
         $mandatoryConfigNextFragmentNode = Get-Node -InputObject $mandatoryConfigNextFragment
 
         Write-Log -Object '  Merging files'
-        $mandatoryConfigNode = Merge-ObjectGraph -InputObject $mandatoryConfigNextFragmentNode -Template $mandatoryConfigNode -PrimaryKey 'NodeName', 'Id', 'Identity', 'UniqueId'
+        $mandatoryConfigNode = Merge-ObjectGraph -InputObject $mandatoryConfigNextFragmentNode -Template $mandatoryConfigNode -PrimaryKey $mergeKeys
     }
     $c++
 }
@@ -178,7 +172,7 @@ foreach ($basicConfigFile in $basicConfigFiles)
         }
         else
         {
-            Write-Log -Object '  Tests passed!'
+            Write-Log -Object '  All tests have passed!'
         }
 
         $basicConfigNode = Get-Node -InputObject $basicConfig
@@ -200,22 +194,15 @@ foreach ($basicConfigFile in $basicConfigFiles)
         }
         else
         {
-            Write-Log -Object '  Tests passed!'
+            Write-Log -Object '  All tests have passed!'
         }
 
         $basicConfigNextFragmentNode = Get-Node -InputObject $basicConfigNextFragment
 
         Write-Log -Object 'Merging files'
-        $basicConfigNode = Merge-ObjectGraph -InputObject $basicConfigNextFragmentNode -Template $basicConfigNode -PrimaryKey 'NodeName', 'Id', 'Identity', 'UniqueId'
+        $basicConfigNode = Merge-ObjectGraph -InputObject $basicConfigNextFragmentNode -Template $basicConfigNode -PrimaryKey $mergeKeys
     }
     $c++
-}
-
-if ($SortOutput -eq $false)
-{
-    Write-Log -Object 'Sorting Basic configuration data on Priority'
-    $basicConfigNode = $basicConfigNode | Sort-ObjectGraph -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId', 'Priority' -MaxDepth 20
-    Write-Log -Object ' '
 }
 
 Write-Log -Object 'Testing if Mandatory data is present in Basic data'
@@ -228,7 +215,7 @@ if ($mandatoryTestResults.Result -ne 'Passed')
 }
 else
 {
-    Write-Log -Object '  Tests passed!'
+    Write-Log -Object '  All tests have passed!'
 }
 Write-Log -Object ' '
 
@@ -255,7 +242,7 @@ foreach ($environment in $environments.Environment)
             Write-Log -Object "Importing file: $($envDataFile.Name)"
             Write-Log -Object '-------------------------------------------'
             $envConfig = Import-PSDataFile $envDataFile.FullName
-
+        
             Write-Log -Object '  Testing if data adheres to the data schema'
             $envTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $envConfig -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
             if ($envTestResults.Result -ne 'Passed')
@@ -265,7 +252,7 @@ foreach ($environment in $environments.Environment)
             }
             else
             {
-                Write-Log -Object '  Tests passed!'
+                Write-Log -Object '  All tests have passed!'
             }
 
             $envConfigNode = Get-Node -InputObject $envConfig
@@ -276,7 +263,7 @@ foreach ($environment in $environments.Environment)
             Write-Log -Object "Merging file: $($envDataFile.Name)"
             Write-Log -Object '-------------------------------------------'
             $envConfigNextFragment = Import-PSDataFile $envDataFile.FullName
-
+        
             Write-Log -Object '  Testing if data adheres to the data schema'
             $envTestResults = $null
             $envTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $envConfigNextFragment -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
@@ -287,13 +274,13 @@ foreach ($environment in $environments.Environment)
             }
             else
             {
-                Write-Log -Object '  Tests passed!'
+                Write-Log -Object '  All tests have passed!'
             }
 
             $envConfigNextFragmentNode = Get-Node -InputObject $envConfigNextFragment
 
             Write-Log -Object '  Merging files'
-            $envConfigNode = Merge-ObjectGraph -InputObject $envConfigNextFragmentNode -Template $envConfigNode -PrimaryKey 'NodeName', 'Id', 'Identity', 'UniqueId'
+            $envConfigNode = Merge-ObjectGraph -InputObject $envConfigNextFragmentNode -Template $envConfigNode -PrimaryKey $mergeKeys
         }
         $c++
     }
@@ -310,7 +297,7 @@ foreach ($environment in $environments.Environment)
     }
     else
     {
-        Write-Log -Object '  Tests passed!'
+        Write-Log -Object '  All tests have passed!'
     }
     Write-Log -Object ' '
 
@@ -341,17 +328,11 @@ foreach ($environment in $envsConfig)
 
     Write-Log -Object ' '
     Write-Log -Object 'Merging basic config with environment-specific config'
-    $mergedConfigDataNode = Merge-ObjectGraph -InputObject $environment.Config -Template $basicConfigNode -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId'
+    $mergedConfigDataNode = Merge-ObjectGraph -InputObject $environment.Config -Template $basicConfigNode -PrimaryKey $mergeKeys
 
     Write-Log -Object 'Exporting Original ConfigData to file'
-    if ($SortOutput)
-    {
-        $psdStringData = $mergedConfigDataNode | Sort-ObjectGraph -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId', 'Priority' -MaxDepth 20 | ConvertTo-Expression
-    }
-    else
-    {
-        $psdStringData = $mergedConfigDataNode | ConvertTo-Expression
-    }
+    Write-Log -Object "  Sorting and exporting data on keys: $($sortKeys -join ", ")"
+    $psdStringData = $mergedConfigDataNode | Sort-ObjectGraph -PrimaryKey $sortKeys -MaxDepth 20 | ConvertTo-Expression
     $originalPsdPath = Join-Path -Path $outputPathDataFile -ChildPath "$($environment.Name)_Original.psd1"
     Set-Content -Path $originalPsdPath -Value $psdStringData
 
@@ -368,14 +349,7 @@ foreach ($environment in $envsConfig)
     $mergedConfigDataNode = [System.Management.Automation.PSSerializer]::Deserialize($Obj_Result_Serialized)
 
     Write-Log -Object 'Exporting Tokenized ConfigData to file'
-    if ($SortOutput)
-    {
-        $psdStringData = $mergedConfigDataNode | Sort-ObjectGraph -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId', 'Priority' -MaxDepth 20 | ConvertTo-Expression
-    }
-    else
-    {
-        $psdStringData = $mergedConfigDataNode | ConvertTo-Expression
-    }
+    $psdStringData = $mergedConfigDataNode | ConvertTo-Expression
     $finalPsdPath = Join-Path -Path $outputPathDataFile -ChildPath "$($environment.Name).psd1"
     Set-Content -Path $finalPsdPath -Value $psdStringData
     Write-Log -Object ' '
@@ -393,7 +367,7 @@ foreach ($environment in $envsConfig)
     }
     else
     {
-        Write-Log -Object '  Tests passed!'
+        Write-Log -Object '  All tests have passed!'
     }
     $current++
 }

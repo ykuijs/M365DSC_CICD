@@ -125,11 +125,11 @@ if ($packageExists -eq $false)
 
     if ($result -eq $true)
     {
-        Write-Log -Object 'Successfully retrieved all required modules from Azure Blob Storage'
+        Write-Log -Object 'Successfully uploaded all required modules to Azure Blob Storage'
     }
     else
     {
-        Write-Log -Object '[ERROR] Unable to retrieve all required modules from Azure Blob Storage' -Failure
+        Write-Log -Object '[ERROR] Unable to upload all required modules to Azure Blob Storage' -Failure
         Write-Host '##vso[task.complete result=Failed;]Failed'
     }
 }
