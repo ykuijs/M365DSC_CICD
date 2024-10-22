@@ -52,3 +52,4 @@ stages:
           filePath: './CICD/Scripts/PreBuild.ps1'
           errorActionPreference: 'Stop'
           failOnStderr: true
+          pwsh: true

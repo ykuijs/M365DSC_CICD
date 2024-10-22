@@ -19,6 +19,11 @@ stages:
     - job: PrepareDependencies
       displayName: 'Prepare dependencies for the given DSC version'
       steps:
+      - checkout: self
+        fetchDepth: 1
+        persistCredentials: true
+        path: ./s/CICD
+
       # Download the required version of M365DSC and its prerequisites, package that
       # into a Zip file and upload to a Blob Storage
       - task: AzurePowerShell@5

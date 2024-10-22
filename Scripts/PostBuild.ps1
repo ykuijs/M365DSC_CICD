@@ -127,10 +127,6 @@ foreach ($environment in $envInfo.GetEnumerator())
     $approvers.($environment.Key) = $environment.Value.Approvers
 }
 
-Write-Log -Object "SYSTEM_COLLECTIONURI: $env:SYSTEM_COLLECTIONURI"
-Write-Log -Object "SYSTEM_TEAMPROJECT  : $env:SYSTEM_TEAMPROJECT"
-Write-Log -Object "BUILD_DEFINITIONNAME: $env:BUILD_DEFINITIONNAME"
-
 $adoResult = Set-ADOEnvironment `
     -Organization (Split-Path -Path $env:SYSTEM_COLLECTIONURI -Leaf) `
     -Project $env:SYSTEM_TEAMPROJECT `

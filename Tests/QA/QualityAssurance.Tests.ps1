@@ -49,10 +49,8 @@
 }
 
 Describe 'Check if all data files are valid' {
-	It 'Import of data file <DataFileDescriptiveName> is successful' -TestCases $dataFilesToTest {
-        $content = Get-Content -Path $DataFile -Raw
-        $data = [Scriptblock]::Create($content)
-		$data | Should -Not -BeNullOrEmpty
+	It 'Check if import of data file <DataFileDescriptiveName> is successful' -TestCases $dataFilesToTest {
+        { Import-PSDataFile -Path $DataFile } | Should -Not -Throw
 	}
 }
 

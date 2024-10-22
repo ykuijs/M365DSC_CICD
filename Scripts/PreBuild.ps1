@@ -12,14 +12,22 @@
     data files as input data. The script also performs quality checks on the data files,
     to make sure the data is correct and valid.
 
+.PARAMETER SortObject
+    When specified, the merged output is sorted alphabetically. This is a time consuming
+    task, so should only be used when the solution only contains a few environments.
+
 .EXAMPLE
     .\build.ps1
 #>
 
-[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification='Write-Host needed for Azure DevOps logging')]
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Write-Host needed for Azure DevOps logging')]
 [CmdletBinding()]
 param
-()
+(
+    [Parameter()]
+    [Switch]
+    $SortOutput
+)
 
 ######## SCRIPT VARIABLES ########
 $configFileSeparator = '#'
@@ -31,6 +39,8 @@ $dataFilesFolder = Join-Path -Path $workingDirectoryData -ChildPath '\DataFiles'
 $testsFolder = Join-Path -Path $workingDirectoryCICD -ChildPath '..\Tests' -Resolve
 $qaTestPath = Join-Path -Path $testsFolder -ChildPath 'Run-QATests.ps1' -Resolve
 $qaCheckErrors = $false
+
+$excludeAvailableAsResource = @('*UniqueId','*IsSingleInstance','NonNodeData.Environment.Tokens*')
 
 ######## START SCRIPT ########
 
@@ -84,7 +94,9 @@ Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' Reading Microsoft365DSC configuration files'
 Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' '
+Write-Log -Object '-----------------------------------------------------------------------'
 Write-Log -Object 'Reading and merging Mandatory configuration file(s): Mandatory*.psd1'
+Write-Log -Object '-----------------------------------------------------------------------'
 [System.Array]$mandatoryConfigFiles = Get-ChildItem -Path (Join-Path -Path $dataFilesFolder -ChildPath 'Templates\Mandatory') -Filter 'Mandatory*.psd1'
 Write-Log -Object "- Found $($mandatoryConfigFiles.Count) Mandatory configuration file(s)"
 Write-Log -Object 'Processing Mandatory configuration file(s)'
@@ -93,22 +105,57 @@ foreach ($mandatoryConfigFile in $mandatoryConfigFiles)
 {
     if ($c -eq 0)
     {
+        Write-Log -Object '----------------------------------------------------'
         Write-Log -Object "Importing file: $($mandatoryConfigFile.Name)"
+        Write-Log -Object '----------------------------------------------------'
         $mandatoryConfig = Import-PSDataFile $mandatoryConfigFile.FullName
+
+        Write-Log -Object '  Testing if data adheres to the data schema'
+        $mandatoryTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $mandatoryConfig -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
+        if ($mandatoryTestResults.Result -ne 'Passed')
+        {
+            Write-Log -Object "  [ERROR] Data errors found in the Mandatory configuration data file: $($mandatoryConfigFile.Name)" -Failure
+            $qaCheckErrors = $true
+        }
+        else
+        {
+            Write-Log -Object '  Tests passed!'
+        }
+
         $mandatoryConfigNode = Get-Node -InputObject $mandatoryConfig
     }
     else
     {
+        Write-Log -Object '----------------------------------------------------'
         Write-Log -Object "Merging file: $($mandatoryConfigFile.Name)"
+        Write-Log -Object '----------------------------------------------------'
         $mandatoryConfigNextFragment = Import-PSDataFile $mandatoryConfigFile.Fullname
+
+        Write-Log -Object '  Testing if data adheres to the data schema'
+        $mandatoryTestResults = $null
+        $mandatoryTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $mandatoryConfigNextFragment -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
+        if ($mandatoryTestResults.Result -ne 'Passed')
+        {
+            Write-Log -Object "  [ERROR] Data errors found in the Mandatory configuration data file: $($mandatoryConfigFile.Name)" -Failure
+            $qaCheckErrors = $true
+        }
+        else
+        {
+            Write-Log -Object '  Tests passed!'
+        }
+
         $mandatoryConfigNextFragmentNode = Get-Node -InputObject $mandatoryConfigNextFragment
+
+        Write-Log -Object '  Merging files'
         $mandatoryConfigNode = Merge-ObjectGraph -InputObject $mandatoryConfigNextFragmentNode -Template $mandatoryConfigNode -PrimaryKey 'NodeName', 'Id', 'Identity', 'UniqueId'
     }
     $c++
 }
 Write-Log -Object ' '
 
+Write-Log -Object '----------------------------------------------------------------'
 Write-Log -Object 'Reading and merging Basic configuration file(s): Basic*.psd1'
+Write-Log -Object '----------------------------------------------------------------'
 [System.Array]$basicConfigFiles = Get-ChildItem -Path (Join-Path -Path $dataFilesFolder -ChildPath 'Templates\Basic') -Filter 'Basic*.psd1'
 Write-Log -Object "- Found $($basicConfigFiles.Count) Basic configuration file(s)"
 Write-Log -Object 'Processing Basic configuration file(s)'
@@ -117,54 +164,135 @@ foreach ($basicConfigFile in $basicConfigFiles)
 {
     if ($c -eq 0)
     {
+        Write-Log -Object '----------------------------------------------------'
         Write-Log -Object "Importing file: $($basicConfigFile.Name)"
+        Write-Log -Object '----------------------------------------------------'
         $basicConfig = Import-PSDataFile $basicConfigFile.FullName
+
+        Write-Log -Object '  Testing if data adheres to the data schema'
+        $basicTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $basicConfig -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
+        if ($basicTestResults.Result -ne 'Passed')
+        {
+            Write-Log -Object "  [ERROR] Data errors found in the Basic configuration data file: $($basicConfigFile.Name)" -Failure
+            $qaCheckErrors = $true
+        }
+        else
+        {
+            Write-Log -Object '  Tests passed!'
+        }
+
         $basicConfigNode = Get-Node -InputObject $basicConfig
     }
     else
     {
+        Write-Log -Object '----------------------------------------------------'
         Write-Log -Object "Merging file: $($basicConfigFile.Name)"
+        Write-Log -Object '----------------------------------------------------'
         $basicConfigNextFragment = Import-PSDataFile $basicConfigFile.FullName
+
+        Write-Log -Object '  Testing if data adheres to the data schema'
+        $basicTestResults = $null
+        $basicTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $basicConfigNextFragment -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
+        if ($basicTestResults.Result -ne 'Passed')
+        {
+            Write-Log -Object "  [ERROR] Data errors found in the Basic configuration data file: $($basicConfigFile.Name)" -Failure
+            $qaCheckErrors = $true
+        }
+        else
+        {
+            Write-Log -Object '  Tests passed!'
+        }
+
         $basicConfigNextFragmentNode = Get-Node -InputObject $basicConfigNextFragment
+
+        Write-Log -Object 'Merging files'
         $basicConfigNode = Merge-ObjectGraph -InputObject $basicConfigNextFragmentNode -Template $basicConfigNode -PrimaryKey 'NodeName', 'Id', 'Identity', 'UniqueId'
     }
     $c++
 }
-Write-Log -Object ' '
 
-Write-Log -Object "Testing if Mandatory data is present in Basic data"
-$mandatoryTestResults = Test-M365MandatoryPowershellDataFile -InputObject $basicConfigNode -MandatoryObject $mandatoryConfigNode
+if ($SortOutput -eq $false)
+{
+    Write-Log -Object 'Sorting Basic configuration data on Priority'
+    $basicConfigNode = $basicConfigNode | Sort-ObjectGraph -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId', 'Priority' -MaxDepth 20
+    Write-Log -Object ' '
+}
+
+Write-Log -Object 'Testing if Mandatory data is present in Basic data'
+$mandatoryTestResults = Test-M365DSCPowershellDataFile -InputObject $basicConfigNode -MandatoryObject $mandatoryConfigNode -Test 'Mandatory' -MandatoryAction 'Present' -PesterOutputObject
 
 if ($mandatoryTestResults.Result -ne 'Passed')
 {
-    Write-Log -Object '[ERROR] Basic configuration does not contain Mandatory settings!' -Failure
+    Write-Log -Object '  [ERROR] Basic configuration does not contain Mandatory settings!' -Failure
     $qaCheckErrors = $true
+}
+else
+{
+    Write-Log -Object '  Tests passed!'
 }
 Write-Log -Object ' '
 
+Write-Log -Object '---------------------------------------------------------------------------------------------------------'
 Write-Log -Object "Reading and merging environment-specific configuration file(s): <EnvName>$($configFileSeparator)*.psd1"
+Write-Log -Object '---------------------------------------------------------------------------------------------------------'
 [System.Array]$dataFiles = Get-ChildItem -Path (Join-Path -Path $dataFilesFolder -ChildPath 'Environments') -Filter '*.psd1' -Recurse
 [System.Array]$environments = $dataFiles | Select-Object @{Label = 'Environment'; Expression = { ($_.BaseName -split $configFileSeparator)[0] } } | Sort-Object -Unique -Property Environment
 Write-Log -Object "Found $($dataFiles.Count) data file(s) for $($environments.Count) environment(s)"
 $envsConfig = @()
 foreach ($environment in $environments.Environment)
 {
+    Write-Log -Object '----------------------------------------------------------'
     Write-Log -Object "Processing data files for environment '$environment'"
+    Write-Log -Object '----------------------------------------------------------'
+    Write-Log -Object ' '
     [System.Array]$envDataFiles = $dataFiles | Where-Object { $_.BaseName -match "^($environment$|$environment$configFileSeparator)" }
     $c = 0
     foreach ($envDataFile in $envDataFiles)
     {
         if ($c -eq 0)
         {
+            Write-Log -Object '-------------------------------------------'
             Write-Log -Object "Importing file: $($envDataFile.Name)"
+            Write-Log -Object '-------------------------------------------'
             $envConfig = Import-PSDataFile $envDataFile.FullName
+
+            Write-Log -Object '  Testing if data adheres to the data schema'
+            $envTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $envConfig -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
+            if ($envTestResults.Result -ne 'Passed')
+            {
+                Write-Log -Object "  [ERROR] Data errors found in the Environment configuration data file: $($envDataFile.Name)" -Failure
+                $qaCheckErrors = $true
+            }
+            else
+            {
+                Write-Log -Object '  Tests passed!'
+            }
+
             $envConfigNode = Get-Node -InputObject $envConfig
         }
         else
         {
+            Write-Log -Object '-------------------------------------------'
             Write-Log -Object "Merging file: $($envDataFile.Name)"
+            Write-Log -Object '-------------------------------------------'
             $envConfigNextFragment = Import-PSDataFile $envDataFile.FullName
+
+            Write-Log -Object '  Testing if data adheres to the data schema'
+            $envTestResults = $null
+            $envTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $envConfigNextFragment -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
+            if ($envTestResults.Result -ne 'Passed')
+            {
+                Write-Log -Object "  [ERROR] Data errors found in the Environment configuration data file: $($envDataFile.Name)" -Failure
+                $qaCheckErrors = $true
+            }
+            else
+            {
+                Write-Log -Object '  Tests passed!'
+            }
+
             $envConfigNextFragmentNode = Get-Node -InputObject $envConfigNextFragment
+
+            Write-Log -Object '  Merging files'
             $envConfigNode = Merge-ObjectGraph -InputObject $envConfigNextFragmentNode -Template $envConfigNode -PrimaryKey 'NodeName', 'Id', 'Identity', 'UniqueId'
         }
         $c++
@@ -172,13 +300,17 @@ foreach ($environment in $environments.Environment)
     $certPath = Join-Path -Path $rootDirectoryCICD -ChildPath $envConfigNode.AllNodes[0].CertificateFile.TrimStart('.\')
     $envConfigNode.AllNodes[0].CertificateFile = $certPath
 
-    Write-Log -Object "Testing if Mandatory data is present in Environment data"
-    $mandatoryTestResults = Test-M365MandatoryPowershellDataFile -InputObject $envConfigNode -MandatoryObject $mandatoryConfigNode -NotAllowedMandatory
+    Write-Log -Object 'Testing if Mandatory data is NOT present in Environment data'
+    $mandatoryTestResults = Test-M365DSCPowershellDataFile -InputObject $envConfigNode -MandatoryObject $mandatoryConfigNode -Test 'Mandatory' -MandatoryAction 'Absent' -PesterOutputObject
 
     if ($mandatoryTestResults.Result -ne 'Passed')
     {
-        Write-Log -Object '[ERROR] Environment configuration for '$environment' contains Mandatory settings, which is not allowed!' -Failure
+        Write-Log -Object "  [ERROR] Environment configuration for '$environment' contains Mandatory settings, which is not allowed!" -Failure
         $qaCheckErrors = $true
+    }
+    else
+    {
+        Write-Log -Object '  Tests passed!'
     }
     Write-Log -Object ' '
 
@@ -192,10 +324,14 @@ foreach ($environment in $environments.Environment)
 Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' Starting Basic/Tenant merge, Tokenizing and QA testing'
 Write-Log -Object '---------------------------------------------------------'
-Write-Log -Object ' '
+$count = $envsConfig.Count
+$current = 1
 foreach ($environment in $envsConfig)
 {
-    Write-Log -Object "Processing environment: $($environment.Name)"
+    Write-Log -Object ' '
+    Write-Log -Object '---------------------------------------------------------------------'
+    Write-Log -Object "Processing environment [$current/$count]: $($environment.Name)"
+    Write-Log -Object '---------------------------------------------------------------------'
 
     $outputPathDataFile = Join-Path -Path $outputFolder -ChildPath $environment.Name
     if ((Test-Path -Path $outputPathDataFile) -eq $false)
@@ -207,7 +343,15 @@ foreach ($environment in $envsConfig)
     Write-Log -Object 'Merging basic config with environment-specific config'
     $mergedConfigDataNode = Merge-ObjectGraph -InputObject $environment.Config -Template $basicConfigNode -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId'
 
-    $psdStringData = $mergedConfigDataNode | Sort-ObjectGraph -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId', 'Priority' -MaxDepth 20 | ConvertTo-Expression
+    Write-Log -Object 'Exporting Original ConfigData to file'
+    if ($SortOutput)
+    {
+        $psdStringData = $mergedConfigDataNode | Sort-ObjectGraph -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId', 'Priority' -MaxDepth 20 | ConvertTo-Expression
+    }
+    else
+    {
+        $psdStringData = $mergedConfigDataNode | ConvertTo-Expression
+    }
     $originalPsdPath = Join-Path -Path $outputPathDataFile -ChildPath "$($environment.Name)_Original.psd1"
     Set-Content -Path $originalPsdPath -Value $psdStringData
 
@@ -218,26 +362,40 @@ foreach ($environment in $envsConfig)
     $Obj_Result_Serialized = [System.Management.Automation.PSSerializer]::Serialize($mergedConfigDataNode)
     foreach ($token in $tokens.GetEnumerator())
     {
-        '- Token Replaced:  {0}  <-  "{1}"' -f $token.name.PadRight(20, ' '), $token.value | Write-log
+        '- Token Replaced:  {0}  <-  "{1}"' -f $token.name.PadRight(20, ' '), $token.value | Write-Log
         $Obj_Result_Serialized = $Obj_Result_Serialized -replace "{{$($token.name)}}", $token.value
     }
     $mergedConfigDataNode = [System.Management.Automation.PSSerializer]::Deserialize($Obj_Result_Serialized)
 
-    $psdStringData = $mergedConfigDataNode | Sort-ObjectGraph -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId', 'Priority' -MaxDepth 20 | ConvertTo-Expression
+    Write-Log -Object 'Exporting Tokenized ConfigData to file'
+    if ($SortOutput)
+    {
+        $psdStringData = $mergedConfigDataNode | Sort-ObjectGraph -PrimaryKey 'NodeName', 'Identity', 'Id', 'UniqueId', 'Priority' -MaxDepth 20 | ConvertTo-Expression
+    }
+    else
+    {
+        $psdStringData = $mergedConfigDataNode | ConvertTo-Expression
+    }
     $finalPsdPath = Join-Path -Path $outputPathDataFile -ChildPath "$($environment.Name).psd1"
     Set-Content -Path $finalPsdPath -Value $psdStringData
+    Write-Log -Object ' '
 
     $mergedConfigDataNode = Import-PSDataFile -Path (Resolve-Path -Path $finalPsdPath).Path
 
-    Write-Log -Object 'Testing merged configuration data'
-    $qaTestResults = Test-M365PowershellDataFile -InputObject $mergedConfigDataNode -Exclude_Required IsSingleInstance, UniqueId -Exclude_AvailableAsResource IsSingleInstance, UniqueId
+    Write-Log -Object 'Testing for presence of all Required parameters in merged configuration data'
+    $qaTestResults = Test-M365DSCPowershellDataFile -InputObject $mergedConfigDataNode -Test 'Required' -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
     Write-Log -Object ' '
 
     if ($qaTestResults.Result -ne 'Passed')
     {
-        Write-Log -Object '[ERROR] Data errors found in compiled configuration data files!' -Failure
+        Write-Log -Object '  [ERROR] Data errors found in compiled configuration data files!' -Failure
         $qaCheckErrors = $true
     }
+    else
+    {
+        Write-Log -Object '  Tests passed!'
+    }
+    $current++
 }
 
 Write-Log -Object ' '

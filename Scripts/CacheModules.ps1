@@ -73,7 +73,7 @@ catch
     Write-Host "ERROR: Could not load library 'SupportFunctions.psm1'. $($_.Exception.Message.Trim('.')). Exiting." -ForegroundColor Red
     exit -1
 }
-
+Install-Module -Name M365DSCTools -Force
 ######## SCRIPT VARIABLES ########
 
 $workingDirectoryCICD = $PSScriptRoot
@@ -96,9 +96,7 @@ Write-Log -Object ' Checking for presence of Microsoft365DSC module'
 Write-Log -Object '-----------------------------------------------------------'
 Write-Log -Object ' '
 $reqVersion = Get-RequiredM365DSCVersion -PrerequisitesPath $prerequisitesPath
-
-#$packageExists = Test-IfModulesInBlobStorage -ResourceGroupName $BlobResourceGroup -StorageAccountName $BlobStorageAccount -ContainerName $BlobContainer -Version $reqVersion
-$packageExists = $false
+$packageExists = Test-IfModulesInBlobStorage -ResourceGroupName $BlobResourceGroup -StorageAccountName $BlobStorageAccount -ContainerName $BlobContainer -Version $reqVersion
 if ($packageExists -eq $false)
 {
     Write-Log -Object ' '
