@@ -79,6 +79,9 @@ Install-Module -Name M365DSCTools -Force
 $workingDirectoryCICD = $PSScriptRoot
 $rootDirectoryCICD = Split-Path -Path $workingDirectoryCICD
 $prerequisitesPath = Join-Path -Path $rootDirectoryCICD -ChildPath 'DscResources.psd1' -Resolve
+# Path is too long for Microsoft365DSC module and we get errors when using the default temp location
+if(!(Test-Path "C:\Temp")){New-Item -Path "C:\Temp" -ItemType Directory}
+$env:TEMP = "C:\Temp"
 
 ######## START SCRIPT ########
 
