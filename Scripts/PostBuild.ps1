@@ -102,7 +102,8 @@ if ($yamlResult -eq $true)
         git config --global user.email "$email"
         git config --global user.name "$name"
 
-        git add *.yml *.yaml
+        git add *.yml
+        git add *.yaml
         git commit -m 'Updated pipeline yaml files [skip ci]'
         git push #origin HEAD:main
     }
