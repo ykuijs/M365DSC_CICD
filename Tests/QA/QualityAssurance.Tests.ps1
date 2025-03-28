@@ -38,7 +38,7 @@
     }
 
     $filesInCICDRepo = @()
-    $items = Get-ChildItem -Path $rootDirectoryCICD -Exclude ".git*","Supportscripts",".vscode*" | Get-ChildItem -Recurse -File
+    $items = Get-ChildItem -Path $rootDirectoryCICD -Exclude ".git*","Supportscripts",".vscode*" | Foreach-Object { Get-ChildItem -Path $_.FullName -Recurse -File -Exclude "*.dll*" }
     foreach ($item in $items)
     {
         $filesInCICDRepo += @{

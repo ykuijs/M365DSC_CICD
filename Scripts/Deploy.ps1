@@ -27,6 +27,7 @@ param
 ######## SCRIPT VARIABLES ########
 
 $workingDirectory = $PSScriptRoot
+$msCloudLoginAssistantDebug = $false
 
 ######## START SCRIPT ########
 
@@ -60,6 +61,15 @@ if ((Test-Path -Path $environmentPath) -eq $false)
     Exit 20
 }
 
+if ($msCloudLoginAssistantDebug)
+{
+    Write-Log -Object ' '
+    Write-Log -Object '---------------------------------------------------------'
+    Write-Log -Object ' Enable MSCloudLoginAssistant Debug Mode'
+    Write-Log -Object '---------------------------------------------------------'
+    [Environment]::SetEnvironmentVariable('MSCLOUDLOGINASSISTANT_WRITETOEVENTLOG', 'true', 'Machine')
+}
+
 try
 {
     $deploymentSucceeded = $true
@@ -79,6 +89,49 @@ catch
 }
 finally
 {
+    Write-Log -Object ' '
+    Write-Log -Object '---------------------------------------------------------'
+    Write-Log -Object ' Saving Logs'
+    Write-Log -Object '---------------------------------------------------------'
+    Write-Log -Object ' '
+    $exportPath = Join-Path -Path $workingDirectory -ChildPath 'Logs'
+    if (Test-Path -Path $exportPath)
+    {
+        Remove-Item -Path $exportPath -Recurse -Force
+    }
+
+    $null = New-Item -Path $exportPath -ItemType Directory -Force
+
+    $logs = @(
+        @{
+            LogName = 'M365DSC'
+            FileName = 'M365DSC_Log.txt'
+        }
+        @{
+            LogName = 'Microsoft-Windows-DSC/Operational'
+            FileName = 'DSCOperational_Log.txt'
+        }
+        @{
+            LogName = 'MSCloudLoginAssistant'
+            FileName = 'MSCloudLoginAssistant_Log.txt'
+        }
+    )
+
+    foreach ($log in $logs)
+    {
+        Write-Log -Object "Processing log: $($log.LogName)"
+        if ([System.Diagnostics.EventLog]::Exists($log.LogName))
+        {
+            $exportFile = Join-Path -Path $exportPath -ChildPath $log.FileName
+            Get-WinEvent -LogName $log.LogName | Select-Object -Property RecordId,Id, MachineName, LevelDisplayName, ProviderName, TimeCreated, Message | Out-File -FilePath $exportFile -Encoding utf8
+            Write-Log -Object "  Log successfully exported"
+        }
+        else
+        {
+            Write-Log -Object "  [SKIPPED] Log not found"
+        }
+    }
+
     Write-Log -Object ' '
     Write-Log -Object '---------------------------------------------------------'
     if ($deploymentSucceeded -eq $true -and $Error.Count -eq 0)

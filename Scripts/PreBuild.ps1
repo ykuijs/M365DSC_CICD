@@ -33,6 +33,7 @@ $qaTestPath = Join-Path -Path $testsFolder -ChildPath 'Run-QATests.ps1' -Resolve
 $qaCheckErrors = $false
 
 $excludeAvailableAsResource = @('*UniqueId','*IsSingleInstance','NonNodeData.Environment.Tokens*')
+$includeRequired = @('UniqueId')
 $mergeKeys = @('NodeName', 'Identity', 'Id', 'UniqueId', 'SettingDefinitionId')
 $sortKeys = @('Priority')
 
@@ -105,7 +106,7 @@ foreach ($mandatoryConfigFile in $mandatoryConfigFiles)
         $mandatoryConfig = Import-PSDataFile $mandatoryConfigFile.FullName
 
         Write-Log -Object '  Testing if data adheres to the data schema'
-        $mandatoryTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $mandatoryConfig -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
+        $mandatoryTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $mandatoryConfig -IncludeRequired $includeRequired -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
         if ($mandatoryTestResults.Result -ne 'Passed')
         {
             Write-Log -Object "  [ERROR] Data errors found in the Mandatory configuration data file: $($mandatoryConfigFile.Name)" -Failure
@@ -124,10 +125,10 @@ foreach ($mandatoryConfigFile in $mandatoryConfigFiles)
         Write-Log -Object "Merging file: $($mandatoryConfigFile.Name)"
         Write-Log -Object '----------------------------------------------------'
         $mandatoryConfigNextFragment = Import-PSDataFile $mandatoryConfigFile.Fullname
-        
+
         Write-Log -Object '  Testing if data adheres to the data schema'
         $mandatoryTestResults = $null
-        $mandatoryTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $mandatoryConfigNextFragment -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
+        $mandatoryTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $mandatoryConfigNextFragment -IncludeRequired $includeRequired -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
         if ($mandatoryTestResults.Result -ne 'Passed')
         {
             Write-Log -Object "  [ERROR] Data errors found in the Mandatory configuration data file: $($mandatoryConfigFile.Name)" -Failure
@@ -164,7 +165,7 @@ foreach ($basicConfigFile in $basicConfigFiles)
         $basicConfig = Import-PSDataFile $basicConfigFile.FullName
 
         Write-Log -Object '  Testing if data adheres to the data schema'
-        $basicTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $basicConfig -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
+        $basicTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $basicConfig -IncludeRequired $includeRequired -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
         if ($basicTestResults.Result -ne 'Passed')
         {
             Write-Log -Object "  [ERROR] Data errors found in the Basic configuration data file: $($basicConfigFile.Name)" -Failure
@@ -186,7 +187,7 @@ foreach ($basicConfigFile in $basicConfigFiles)
 
         Write-Log -Object '  Testing if data adheres to the data schema'
         $basicTestResults = $null
-        $basicTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $basicConfigNextFragment -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
+        $basicTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $basicConfigNextFragment -IncludeRequired $includeRequired -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
         if ($basicTestResults.Result -ne 'Passed')
         {
             Write-Log -Object "  [ERROR] Data errors found in the Basic configuration data file: $($basicConfigFile.Name)" -Failure
@@ -242,9 +243,9 @@ foreach ($environment in $environments.Environment)
             Write-Log -Object "Importing file: $($envDataFile.Name)"
             Write-Log -Object '-------------------------------------------'
             $envConfig = Import-PSDataFile $envDataFile.FullName
-        
+
             Write-Log -Object '  Testing if data adheres to the data schema'
-            $envTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $envConfig -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
+            $envTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $envConfig -IncludeRequired $includeRequired -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
             if ($envTestResults.Result -ne 'Passed')
             {
                 Write-Log -Object "  [ERROR] Data errors found in the Environment configuration data file: $($envDataFile.Name)" -Failure
@@ -263,10 +264,10 @@ foreach ($environment in $environments.Environment)
             Write-Log -Object "Merging file: $($envDataFile.Name)"
             Write-Log -Object '-------------------------------------------'
             $envConfigNextFragment = Import-PSDataFile $envDataFile.FullName
-        
+
             Write-Log -Object '  Testing if data adheres to the data schema'
             $envTestResults = $null
-            $envTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $envConfigNextFragment -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
+            $envTestResults = Test-M365DSCPowershellDataFile -Test 'TypeValue' -InputObject $envConfigNextFragment -IncludeRequired $includeRequired -ExcludeAvailableAsResource $excludeAvailableAsResource -PesterOutputObject
             if ($envTestResults.Result -ne 'Passed')
             {
                 Write-Log -Object "  [ERROR] Data errors found in the Environment configuration data file: $($envDataFile.Name)" -Failure

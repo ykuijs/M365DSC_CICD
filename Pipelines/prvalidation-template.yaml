@@ -28,9 +28,9 @@ stages:
         inputs:
           targetType: 'filePath'
           filePath: './CICD/Scripts/DeployModules.ps1'
-          arguments: '-PackageSourceLocation "${{ variables.packageSourceLocation }}" -PATToken "${{ variables.patToken }}"'
           errorActionPreference: 'Stop'
           failOnStderr: true
+          pwsh: true
 
       # Check if all required Secrets/Certificates exist in the KeyVault
       - task: AzurePowerShell@5
@@ -53,3 +53,12 @@ stages:
           errorActionPreference: 'Stop'
           failOnStderr: true
           pwsh: true
+
+      - task: PublishPipelineArtifact@1
+        displayName: 'Publish Artifacts to Pipeline'
+        condition: succeededOrFailed()
+        inputs:
+          targetPath: '${{ variables.buildFolderName }}/'
+          artifact: 'DeployPackage'
+          publishLocation: 'pipeline'
+          parallel: true
