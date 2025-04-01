@@ -79,6 +79,26 @@ Set-Location -Path $workingDirectoryCICD
 
 Write-Log -Object ' '
 Write-Log -Object '---------------------------------------------------------'
+Write-Log -Object ' Updating Codepage to UTF-8 for better compatibility'
+Write-Log -Object '---------------------------------------------------------'
+Write-Log -Object ' '
+$codepage = Get-ItemPropertyValue -Path HKLM:\SYSTEM\CurrentControlSet\Control\Nls\CodePage -Name ACP
+Write-Log -Object "Current Codepage: $codepage"
+if ($codepage -ne '65001')
+{
+    Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Control\Nls\CodePage -Name ACP -Value 65001
+    Write-Log -Object 'Updating codepage to 65001'
+
+    $newCodepage = Get-ItemPropertyValue -Path HKLM:\SYSTEM\CurrentControlSet\Control\Nls\CodePage -Name ACP
+    Write-Log -Object "Updated Codepage: $newCodepage"
+}
+else
+{
+    Write-Log -Object 'Codepage already correct!'
+}
+
+Write-Log -Object ' '
+Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' Checking for presence of Microsoft365DSC module'
 Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' '

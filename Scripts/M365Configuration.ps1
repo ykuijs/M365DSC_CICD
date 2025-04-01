@@ -7,6 +7,7 @@
         $azureAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'Azure' }
         $azureadAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'AzureAD' }
         $azuredoAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'AzureDevOps' }
+        $commerceAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'Commerce' }
         $defenderAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'Defender' }
         $exchangeAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'Exchange' }
         $fabricAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'Fabric' }
@@ -17,6 +18,7 @@
         $powerplatformAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'PowerPlatform' }
         $securitycomplianceAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'SecurityCompliance' }
         $sentinelAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'Sentinel' }
+        $servicesHubAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'ServicesHub' }
         $sharepointAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'SharePoint' }
         $teamsAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'Teams' }
 
@@ -50,6 +52,17 @@
                 ApplicationId         = $azuredoAppCreds.ApplicationId
                 TenantId              = $ConfigurationData.NonNodeData.Environment.TenantId
                 CertificateThumbprint = $azuredoAppCreds.CertThumbprint
+            }
+        }
+
+        # Commerce Composite Resource
+        if ($null -ne $commerceAppCreds -and $ConfigurationData.NonNodeData.Environment.UsedWorkloads.Commerce -eq $true)
+        {
+            Commerce 'Commerce_Configuration'
+            {
+                ApplicationId         = $commerceAppCreds.ApplicationId
+                TenantId              = $ConfigurationData.NonNodeData.Environment.TenantId
+                CertificateThumbprint = $commerceAppCreds.CertThumbprint
             }
         }
 
@@ -160,6 +173,17 @@
                 ApplicationId         = $sentinelAppCreds.ApplicationId
                 TenantId              = $ConfigurationData.NonNodeData.Environment.TenantId
                 CertificateThumbprint = $sentinelAppCreds.CertThumbprint
+            }
+        }
+
+        # ServicesHub Composite Resource
+        if ($null -ne $servicesHubAppCreds -and $ConfigurationData.NonNodeData.Environment.UsedWorkloads.ServicesHub -eq $true)
+        {
+            ServicesHub 'ServicesHub_Configuration'
+            {
+                ApplicationId         = $servicesHubAppCreds.ApplicationId
+                TenantId              = $ConfigurationData.NonNodeData.Environment.TenantId
+                CertificateThumbprint = $servicesHubAppCreds.CertThumbprint
             }
         }
 

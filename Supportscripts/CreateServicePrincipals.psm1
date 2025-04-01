@@ -16,7 +16,7 @@
         $CertificatePath,
 
         [Parameter()]
-        [ValidateSet('AzureAD', 'SharePoint', 'Exchange', 'Intune', 'SecurityCompliance', 'OneDrive', 'Office365', 'Planner', 'PowerPlatform', 'Teams')]
+        [ValidateSet('Azure', 'AzureAD', 'AzureDevOps', 'Commerce', 'Defender', 'Exchange', 'Fabric', 'Intune', 'Office365', 'OneDrive', 'Planner', 'PowerPlatform', 'SecurityCompliance', 'Sentinel', 'ServicesHub', 'SharePoint', 'Teams')]
         [System.String]
         $Workload
     )
@@ -113,11 +113,26 @@
             Write-LogEntry -Object "  Workload '$Workload' specified, retrieving all resources for this workload"
             switch ($Workload)
             {
+                'Azure' {
+                    $resources = $allResources | Where-Object -FilterScript { $_ -like 'Azure*'}
+                }
                 'AzureAD' {
                     $resources = $allResources | Where-Object -FilterScript { $_ -like 'AAD*'}
                 }
+                'AzureDevOps' {
+                    $resources = $allResources | Where-Object -FilterScript { $_ -like 'ADO*'}
+                }
+                'Commerce' {
+                    $resources = $allResources | Where-Object -FilterScript { $_ -like 'Commerce*'}
+                }
+                'Defender' {
+                    $resources = $allResources | Where-Object -FilterScript { $_ -like 'Defender*'}
+                }
                 'Exchange' {
                     $resources = $allResources | Where-Object -FilterScript { $_ -like 'EXO*'}
+                }
+                'Fabric' {
+                    $resources = $allResources | Where-Object -FilterScript { $_ -like 'Fabric*'}
                 }
                 'Intune' {
                     $resources = $allResources | Where-Object -FilterScript { $_ -like 'Intune*'}
@@ -136,6 +151,12 @@
                 }
                 'SecurityCompliance' {
                     $resources = $allResources | Where-Object -FilterScript { $_ -like 'SC*'}
+                }
+                'Sentinel' {
+                    $resources = $allResources | Where-Object -FilterScript { $_ -like 'Sentinel*'}
+                }
+                'ServicesHub' {
+                    $resources = $allResources | Where-Object -FilterScript { $_ -like 'SH*'}
                 }
                 'SharePoint' {
                     $resources = $allResources | Where-Object -FilterScript { $_ -like 'SPO*'}
