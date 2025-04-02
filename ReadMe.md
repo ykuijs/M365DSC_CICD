@@ -9,7 +9,25 @@ This is [the repository](https://github.com/ykuijs/M365DSC_CICD) for the CICD Fr
 
 # Changelog
 
-- v3.0 (2024-10-22) - Implemented a new framework
+- v3.1 (2025-04-01) - Added various improvements to framework
+  - Improved troubleshooting information collection
+    - Configured the PR Validation pipeline to also upload the merged data files to the pipeline, so it can be used for troubleshooting.
+    - Configured the Deployment pipeline to save the "M365DSC", "Microsoft-Windows-DSC/Operational" and "MSCloudLoginAssistant" event logs and upload that to the pipeline, so it can be used for troubleshooting.
+  - Changed prerequisite modules pre-staging to an Azure Blob Storage to using the ModuleFast module.
+    - This removes the requirement for an Azure Blob Storage and improves the performance even more.
+  - Optimized the CIM memory configuration
+    - Some deployments ran into memory issues. These optimizations reduces the chance of experiencing these issues.
+  - Added troubleshooting information to chapter 6 of the whitepaper.
+    - Document some steps that can be used to troubleshoot the solution.
+  - Implemented the default code page configuration to UTF8
+    - In some cases data files contain Unicode characters, which result in issues during compliancy testing or deployment of configurations. This is resolved when the default code page in Windows is set to UTF8. The script now automatically changes this with each run.
+  - **[BREAKING CHANGE]** Reverted resource naming in the Composite Resource Generator (CRG) from plural to singular.
+    - To improve readability, the CRG converted the names of the Microsoft365DSC resources into plural variants if they allowed multiple objects to be inserted. For example: "ConditionalAccessPolicy" would become "ConditionalAccessPolicies" because you can configure multiple policies. As a result, the code in other places became much more complex, since the resource naming was not predictable and consistent. For example: In "IntunePolicySets" the word "Policy" should not be converted because "Sets" is the plural word here. That meant we had to implement exception on exception, etc.
+    - So we decided to revert back to the original Microsoft365DSC resource naming in whatever form they are created. **Important:** This means you have to change the resource names in the data file structure as well, changing the resource names to their original form. This change goes into effect with the release of Microsoft365DSC v1.25.402.1 (the Breaking Change release of April 2025)!
+  - Fixed issues in the whitepaper
+    - Corrected hardcoded password into the required variable in the script mentioned in paragraph 4.1.3.
+    - Updated steps in paragraph 4.7.4.1 to clarify that the creation of data files (paragraph 5.1.3 is required).
+- v3.0 (2024-10-24) - Implemented a new framework
   - Separate Data and Scripts Azure DevOps projects
     - The solution is split into two different projects: Scripts and Data files.
     - This means that you can grant Microsoft 365 administrators access to the Data project, making sure they cannot change any of the scripts to deploy the changes.

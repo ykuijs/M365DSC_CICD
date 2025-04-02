@@ -24,23 +24,6 @@ parameters:
   default:
 # ---------------------------------------------------
 
-# ----------- SECTION: Azure Blob Storage -----------
-- name: BlobResourceGroup
-  type: string
-  # Name of your Azure resource group that contains the storage account to store the cached modules
-  default: M365DSC
-
-- name: BlobStorageAccount
-  type: string
-  # Name of your storage account within the Azure resource group to store the cached modules
-  default: m365dscblobs
-
-- name: BlobContainer
-  type: string
-  # Name of the container within the storage account to store the cached modules
-  default: dependency-modules
-# ---------------------------------------------------
-
 # ------------- SECTION: Azure KeyVault -------------
 - name: KeyVault
   type: string
@@ -110,15 +93,6 @@ variables:
   readonly: true
 - name: packageSourceLocation
   value: ${{ parameters.PackageSourceLocation }}
-  readonly: true
-- name: blobResourceGroup
-  value: ${{ parameters.BlobResourceGroup }}
-  readonly: true
-- name: blobStorageAccount
-  value: ${{ parameters.BlobStorageAccount }}
-  readonly: true
-- name: blobContainer
-  value: ${{ parameters.BlobContainer }}
   readonly: true
 - name: keyVault
   value: ${{ parameters.KeyVault }}

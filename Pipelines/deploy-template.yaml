@@ -44,8 +44,24 @@ stages:
                   @echo off
                   call winrm invoke restore winrm/config
                   call winrm quickconfig -quiet
-                  call winrm set winrm/config @{MaxEnvelopeSizekb="4096"} > null
+                  call winrm set winrm/config @{MaxEnvelopeSizekb="8192"} > null
                   call winrm get winrm/config | find /i "MaxEnvelopeSizekb"
+
+            # Configure the CIM memory settings
+            - task: PowerShell@2
+              displayName: 'Configure CIM memory settings'
+              inputs:
+                targetType: 'inline'
+                script: |
+                  $quotaConfiguration = Get-CimInstance -Namespace Root -ClassName "__ProviderHostQuotaConfiguration"
+                  $quotaConfiguration.MemoryAllHosts = 4 * 4GB
+                  $quotaConfiguration.MemoryPerHost  = 3 * 4GB
+                  $quotaConfiguration.HandlesPerHost = 8192
+                  $quotaConfiguration.ThreadsPerHost = 512
+                  Set-CimInstance -InputObject $quotaConfiguration
+                errorActionPreference: 'Stop'
+                failOnStderr: true
+                workingDirectory: '$(Pipeline.Workspace)/M365Automation/DeployPackage'
 
             # Make sure all required modules are installed
             - task: AzurePowerShell@5
@@ -53,11 +69,12 @@ stages:
               inputs:
                 ScriptType: 'FilePath'
                 ScriptPath: './CICD/Scripts/DeployModules.ps1'
-                ScriptArguments: '-PackageSourceLocation "${{ variables.packageSourceLocation }}" -PATToken "${{ variables.patToken }}" -DeployM365Prerequisites -BlobResourceGroup "${{ variables.blobResourceGroup }}" -BlobStorageAccount "${{ variables.blobStorageAccount }}" -BlobContainer "${{ variables.blobContainer }}"'
+                ScriptArguments: '-DeployM365Prerequisites'
                 azurePowerShellVersion: 'latestVersion'
                 azureSubscription: '${{ variables.azureSubscription }}'
                 errorActionPreference: 'Stop'
                 FailOnStandardError: false
+                pwsh: true
 
             # Make sure all Secrets/Certificates are downloaded from the KeyVault and installed
             - task: AzurePowerShell@5
@@ -81,3 +98,13 @@ stages:
                 errorActionPreference: 'Stop'
                 failOnStderr: true
                 workingDirectory: '$(Pipeline.Workspace)/Build MOF/DeployPackage'
+
+            # Save the Event Logs to the Pipeline
+            - task: PublishPipelineArtifact@1
+              displayName: 'Save Event Logs to Pipeline'
+              condition: succeededOrFailed()
+              inputs:
+                targetPath: '$(Pipeline.Workspace)/M365Automation/DeployPackage/Logs'
+                artifact: 'Logs'
+                publishLocation: 'pipeline'
+                parallel: true

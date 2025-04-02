@@ -53,10 +53,30 @@ Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' Changing to the source branch'
 Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' '
+
 Write-Log -Object "Switching to path: $($env:BUILD_SOURCEBRANCHNAME)"
+Write-Log -Object "Running remote update"
 git remote update *> $null
+Write-Log -Object "Running git fetch"
 git fetch *> $null
-git checkout --track origin/$($env:BUILD_SOURCEBRANCHNAME) -q *> $null
+
+# Check if the branch already exists
+Write-Log -Object "Checking if the branch already exists"
+if (git show-ref --verify refs/heads/$($env:BUILD_SOURCEBRANCHNAME))
+{
+    # If the branch exists, switch to it
+    Write-Log -Object "Finally switching to the branch - running git checkout"
+    git checkout $($env:BUILD_SOURCEBRANCHNAME)
+
+    Write-Log -Object "Running git pull"
+    git pull
+}
+else
+{
+    # If the branch does not exist, create it and set up tracking
+    Write-Log -Object "The branch doesn't already exist. Running git checkout --track origin"
+    git checkout --track origin/$($env:BUILD_SOURCEBRANCHNAME) -q *> $null
+}
 
 Write-Log -Object ' '
 Write-Log -Object '---------------------------------------------------------'
@@ -85,31 +105,42 @@ Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' Updating pipeline Yaml file with environment information'
 Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' '
-$yamlResult = Set-PipelineYaml `
-    -YamlPath (Join-Path -Path $workingDirectoryData -ChildPath 'Pipelines\deployment.yml') `
-    -EnvironmentsInfo $envInfo
+$yamlPath = Join-Path -Path $workingDirectoryData -ChildPath 'Pipelines\deployment.yaml'
 
-if ($yamlResult -eq $true)
+if (Test-Path -Path $yamlPath)
 {
-    Write-Log -Object "Changing directory to '$workingDirectoryData'"
-    Set-Location -Path $workingDirectoryData
+    $yamlResult = Set-PipelineYaml `
+        -YamlPath $yamlPath `
+        -EnvironmentsInfo $envInfo
 
-    Write-Log -Object 'Checking if yml files need to be committed to the repository'
-    $status = git status -s
-    if (($status | ForEach-Object { $_ -like '*.yaml' -or $_ -like '*.yml' }) -contains $true)
+    if ($yamlResult -eq $true)
     {
-        Write-Log -Object "Committing $($status.Count) file changes to the repository"
-        git config --global user.email "$email"
-        git config --global user.name "$name"
+        Write-Log -Object "Changing directory to '$workingDirectoryData'"
+        Set-Location -Path $workingDirectoryData
 
-        git add *.yml *.yaml
-        git commit -m 'Updated pipeline yaml files [skip ci]'
-        git push #origin HEAD:main
+        Write-Log -Object 'Checking if yml files need to be committed to the repository'
+        $status = git status -s
+        if (($status | ForEach-Object { $_ -like '*.yaml' -or $_ -like '*.yml' }) -contains $true)
+        {
+            Write-Log -Object "Committing $($status.Count) file changes to the repository"
+            git config --global user.email "$email"
+            git config --global user.name "$name"
+
+            git add *.yaml
+            git add *.yml
+            git commit -m 'Updated pipeline yaml files [skip ci]'
+            git push #origin HEAD:main
+        }
+    }
+    else
+    {
+        Write-Log -Object 'Updating of pipeline YAML file failed. Exiting.' -Failure
+        $encounteredErrors = $true
     }
 }
 else
 {
-    Write-Log -Object 'Updating of pipeline YAML file failed. Exiting.' -Failure
+    Write-Log -Object "Pipeline YAML file '$yamlPath' not found. Exiting." -Failure
     $encounteredErrors = $true
 }
 

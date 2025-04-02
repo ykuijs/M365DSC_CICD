@@ -561,26 +561,26 @@ function Install-GenericModules
 {
     <#
 	.Synopsis
-	Installs all generic Microsoft365DSC supporting modules from PSGallery or a custom NuGet repository
+	Installs all generic Microsoft365DSC supporting modules from PSGallery or a custom NuGet repository,
+    using the ModuleFast module.
 
 	.Description
 	This function installs the latest versions of all supporting Microsoft365DSC generic modules
 	from PSGallery or a custom NuGet package feed, except for the M365DSC.CompositeResources module, where
-	it installs the latest version that corresponds the given Microsoft365DSC module version.
+	it installs the latest version that corresponds the given Microsoft365DSC module version. It uses the
+    ModuleFast module to install the modules.
 
-	.Parameter PackageSourceLocation
-	The URI of the NuGet repository where the generic modules are published. It defaults to the URI of PSGallery.
+    .Parameter TargetPath
+	The path where the modules should be downloaded to.
 
-	.Parameter PATToken
-	The Personal Access Token that is granted at least read access to the custom NuGet repository
+	.Parameter PrerequisitesPath
+	The path to the Prequisites file for this solution.
 
 	.Parameter Version
 	The version of the Microsoft365DSC module that is being used
 
 	.Example
 	Install-GenericModules -Version '1.23.1115.1'
-
-	Install-GenericModules -PackageSourceLocation 'https://pkgs.dev.azure.com/Organization/Project/_packaging/Feed/nuget/v2' -PATToken 'abcd123' -Version '1.23.1115.1'
 	#>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification='Write-Host needed for Azure DevOps logging')]
     [CmdletBinding()]
@@ -588,74 +588,21 @@ function Install-GenericModules
     (
         [Parameter(Mandatory = $true)]
         [System.String]
+        $TargetPath,
+
+        [Parameter(Mandatory = $true)]
+        [System.String]
         $PrerequisitesPath,
-
-        [Parameter()]
-        [AllowNull()]
-        [AllowEmptyString()]
-        [System.String]
-        $PackageSourceLocation = (Get-PSRepository -Name PSGallery).SourceLocation,
-
-        [Parameter()]
-        [AllowNull()]
-        [AllowEmptyString()]
-        [System.String]
-        $PATToken,
 
         [Parameter(Mandatory = $true)]
         [System.String]
         $Version
     )
-    if ($PackageSourceLocation -eq $null -or $PackageSourceLocation -eq '')
-    {
-        $PackageSourceLocation = (Get-PSRepository -Name PSGallery).SourceLocation
-    }
 
-    Write-Log -Object 'Summary:'
-    Write-Log -Object "- Microsoft365DSC Version: $Version"
-    Write-Log -Object "- Repository URI         : $PackageSourceLocation"
+    Write-Log -Object "Required Microsoft365DSC Version: $Version"
     Write-Log -Object ' '
-
-    if ($PackageSourceLocation -notmatch 'www.powershellgallery.com')
-    {
-        Write-Log -Object 'Registering generic package feed as PSRepository'
-        $repositoryName = 'M365DSC_Generic_Modules'
-
-        if ($PATToken)
-        {
-            $credsAzureDevopsServices = New-Object System.Management.Automation.PSCredential('USERNAME', ($PATToken | ConvertTo-SecureString -AsPlainText -Force))
-            $parameters = @{
-                Name         = $repositoryName
-                Location     = $PackageSourceLocation
-                ProviderName = 'PowerShellGet'
-                Trusted      = $true
-                Credential   = $credsAzureDevopsServices
-            }
-        }
-        else
-        {
-            $parameters = @{
-                Name         = $repositoryName
-                Location     = $PackageSourceLocation
-                ProviderName = 'PowerShellGet'
-                Trusted      = $true
-            }
-        }
-
-        $registeredRepos = Get-PSRepository
-        if ($registeredRepos -contains $repositoryName)
-        {
-            Write-Log -Object "The repository '$repositoryName' is already registered. Skipping registration."
-        }
-        else
-        {
-            Register-PackageSource @parameters
-        }
-    }
-    else
-    {
-        $repositoryName = 'PSGallery'
-    }
+    Write-Log -Object "- Target Path: $TargetPath"
+    Write-Log -Object ' '
 
     Write-Log -Object 'Querying required generic modules'
     $resourceModules = Import-PowerShellDataFile -Path $PrerequisitesPath
@@ -666,21 +613,30 @@ function Install-GenericModules
     $maxLength = ($reqModules.Keys | Measure-Object -Maximum -Property Length).Maximum
     $reqModules.GetEnumerator() | ForEach-Object { Write-Log -Object ("* {0,-$maxLength} - {1}" -f $_.Key, $_.Value) }
 
-    $genericModules = @()
-    foreach ($moduleName in $reqModules.Keys)
+    Write-Log -Object ' '
+    Write-Log -Object 'Installing required generic modules'
+
+    $oldProgressPreference = $progressPreference
+    $progressPreference = 'SilentlyContinue'
+
+    foreach ($module in $reqModules.Keys)
     {
-        $moduleVersion = $reqModules.$moduleName
-        $matchingModule = $null
+        $moduleVersion = $reqModules.$module
 
         $parameters = @{
-            Name        = $moduleName
-            Repository  = $repositoryName
-            ErrorAction = 'Ignore'
+            Specification   = $module
+            Destination     = $TargetPath
+            Update          = $true
+            NoProfileUpdate = $true
+            DestinationOnly = $true
+            PassThru        = $true
         }
-        if ($PATToken)
+
+        if ($moduleVersion -like '*preview*')
         {
-            $parameters.Add('Credential', $credsAzureDevopsServices)
+            $parameters.Add('Prerelease', $true)
         }
+
         switch ($moduleVersion)
         {
             ''
@@ -697,107 +653,78 @@ function Install-GenericModules
             }
             latestMatchingMicrosoft365DSC
             {
-                $parameters.Add('MinimumVersion', ('{0}00' -f $Version))
-                $parameters.Add('MaximumVersion', ('{0}99' -f $Version))
+                $parameters.Specification += ":{0}*" -f $Version
             }
             Default
             {
-                $parameters.Add('RequiredVersion', $moduleVersion)
+                $parameters.Specification += "={0}" -f $moduleVersion
             }
         }
 
-        if ($moduleVersion -like '*preview*')
-        {
-            $parameters.Add('AllowPrerelease', $true)
-        }
+        Write-Log -Object "  Installing module '$($parameters.Specification)' ($($reqModules.$module))"
+        [array]$results = Install-ModuleFast @parameters
 
-        Write-Log -Object "Querying module '$($parameters.Name)'"
-        $matchingModule = Find-Module @parameters
-        if ($matchingModule)
-        {
-            Write-Log -Object "- Found module '$($parameters.Name) v$($matchingModule.Version.ToString())'"
-            $genericModules += $matchingModule
-        }
-        else
-        {
-            Write-Log -Object "- [ERROR] Can't find the '$($parameters.Name)' module matching the specified version: '$moduleVersion'." -Failure
-        }
-    }
-
-    if ($genericModules.Count -ne $reqModules.Keys.Count)
-    {
-        Write-Log -Object "[ERROR] Couldn't find one or more required generic modules specified in DscResources.psd1. Exiting!" -Failure
-        Write-Host '##vso[task.complete result=Failed;]Failed'
-        exit -1
-    }
-
-    Write-Log -Object 'Installing required generic modules'
-
-    $oldProgressPreference = $progressPreference
-    $progressPreference = 'SilentlyContinue'
-
-    foreach ($module in $genericModules)
-    {
-        Write-Log -Object "Installing module '$($module.Name) v$($module.Version.ToString())'"
-        $parameters = @{
-            Name            = $module.Name
-            RequiredVersion = $module.Version.ToString()
-            Repository      = $repositoryName
-            Scope           = 'AllUsers'
-            AllowClobber    = $true
-            Force           = $true
-            WarningAction   = 'Ignore'
-            AllowPrerelease = $true
-        }
-        if ($PATToken)
-        {
-            $parameters.Add('Credential', $credsAzureDevopsServices)
-        }
-
-        # Add SkipPublisherCheck for Pester module.
-        # More info: https://github.com/pester/Pester?tab=readme-ov-file#signing-certificates
-        if ($module.Name -eq 'Pester')
-        {
-            Write-Log -Object "  Adding SkipPublisherCheck parameter, required for Pester."
-            $parameters.Add('SkipPublisherCheck', $true)
-        }
-
-        Install-Module @parameters
+        $installedModules = foreach ($result in $results) { "$($result.Name) ($($result.ModuleVersion))"}
+        Write-Log -Object "    -> Installed: $($installedModules -join " / ")"
     }
 
     $progressPreference = $oldProgressPreference
-
-    if ($repositoryName -ne 'PSGallery')
-    {
-        Write-Log -Object 'Unregistering PSRepository'
-        Unregister-PSRepository -Name $repositoryName
-    }
 }
 
 function Initialize-PSGallery
 {
+    <#
+	.Synopsis
+	Configures the PowerShell Gallery as a trusted repository
+
+	.Description
+	This function configures the PowerShell Gallery as a trusted repository,
+    so that modules can be installed from it without warnings or user interaction.
+
+	.Example
+	Initialize-PSGallery
+	#>
     [CmdletBinding()]
     param ()
 
-    Write-Log -Object 'Checking PowerShellGet presence and version'
-    Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted
-
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $psGetModule = Get-Module -Name 'PowerShellGet' -ListAvailable | Sort-Object -Property Version -Descending | Select-Object -First 1
-
-    if ($psGetModule.Version -lt [System.Version]'2.2.4.0')
+    Write-Log -Object 'Checking PowerShell Gallery repository configuration'
+    $psGallery = Get-PSRepository PSGallery
+    if ($psGallery.InstallationPolicy -ne 'Trusted')
     {
-        Write-Log -Object 'Installing PowerShellGet'
-        $null = Install-Module -Name 'PowerShellGet' -Scope AllUsers -SkipPublisherCheck -Force
+        Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted
     }
 }
 
 function Install-DSCModule
 {
+    <#
+	.Synopsis
+	Installs the Microsoft365DSC module from the PowerShell Gallery using ModuleFast
+
+	.Description
+	This function installs the Microsoft365DSC module from the PowerShell Gallery
+    using the ModuleFast function.
+
+    .Parameter TargetPath
+	The path where the modules should be downloaded to.
+
+	.Parameter PrerequisitesPath
+	The path to the Prequisites file for this solution.
+
+	.Parameter Version
+	The version of the Microsoft365DSC module that is being used
+
+	.Example
+	Install-DSCModule -PrerequisitesPath "$PSScriptPath\DscResources.psd1"
+	#>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification='Write-Host needed for Azure DevOps logging')]
     [CmdletBinding()]
     param
     (
+        [Parameter(Mandatory = $true)]
+        [System.String]
+        $TargetPath,
+
         [Parameter()]
         [System.String]
         $PrerequisitesPath,
@@ -830,6 +757,10 @@ function Install-DSCModule
     Write-Log -Object "- Required version : $reqVersion"
     Write-Log -Object "- Installed version: $($localModule.Version)"
 
+    Write-Log -Object ' '
+    Write-Log -Object "- Target Path: $TargetPath"
+    Write-Log -Object ' '
+
     if ($localModule.Version -ne $reqVersion)
     {
         if ($null -ne $localModule)
@@ -842,7 +773,24 @@ function Install-DSCModule
         Initialize-PSGallery
 
         Write-Log -Object "Installing Microsoft365DSC v$reqVersion"
-        $null = Install-Module -Name 'Microsoft365DSC' -RequiredVersion $reqVersion -Scope AllUsers
+        $params = @{
+            Specification   = 'Microsoft365DSC={0}' -f $reqVersion
+            Destination     = $TargetPath
+            Update          = $true
+            NoProfileUpdate = $true
+            DestinationOnly = $true
+            PassThru        = $true
+        }
+
+        $oldProgressPreference = $progressPreference
+        $progressPreference = 'SilentlyContinue'
+
+        [array]$results = Install-ModuleFast @params
+
+        $installedModules = foreach ($result in $results) { "$($result.Name) ($($result.ModuleVersion))"}
+        Write-Log -Object "    -> Installed: $($installedModules -join " / ")"
+
+        $progressPreference = $oldProgressPreference
     }
     else
     {
@@ -854,6 +802,20 @@ function Install-DSCModule
 
 function Get-RequiredM365DSCVersion
 {
+    <#
+	.Synopsis
+	Retrieves the required version of the Microsoft365DSC module from the Prerequisites file
+
+	.Description
+	This function retrieves the required version of the Microsoft365DSC module from the Prerequisites file
+    for this solution.
+
+	.Parameter PrerequisitesPath
+	The path to the Prequisites file for this solution.
+
+    .Example
+	Get-RequiredM365DSCVersion -PrerequisitesPath "$PSScriptPath\DscResources.psd1"
+	#>
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification='Write-Host needed for Azure DevOps logging')]
     [CmdletBinding()]
     [OutputType([System.String])]
@@ -878,6 +840,7 @@ function Get-RequiredM365DSCVersion
         else
         {
             $reqVersion = $reqModules.Microsoft365DSC
+            Write-Log -Object "- Required version: $reqVersion"
         }
     }
     else
@@ -888,4 +851,126 @@ function Get-RequiredM365DSCVersion
     }
 
     return $reqVersion
+}
+
+function Install-DSCModulePrereqs
+{
+    <#
+	.Synopsis
+	Installs all prerequisites for the Microsoft365DSC module using ModuleFast
+
+	.Description
+	This function installs all prerequisites for the Microsoft365DSC module using the ModuleFast function.
+
+    .Parameter TargetPath
+	The path where the modules should be downloaded to.
+
+	.Parameter PrerequisitesPath
+	The path to the Prequisites file for this solution.
+
+	.Parameter Version
+	The version of the Microsoft365DSC module that is being used
+
+    .Example
+	Install-DSCModulePrereqs -PrerequisitesPath "$PSScriptPath\DscResources.psd1"
+	#>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification='Write-Host needed for Azure DevOps logging')]
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [System.String]
+        $TargetPath,
+
+        [Parameter()]
+        [System.String]
+        $PrerequisitesPath,
+
+        [Parameter()]
+        [System.String]
+        $Version
+    )
+
+    Write-Log -Object 'Checking Microsoft365DSC versions'
+    if ($Version)
+    {
+        $reqVersion = $Version
+    }
+    else
+    {
+        if ($PSBoundParameters.ContainsKey('PrerequisitesPath'))
+        {
+            $reqVersion = Get-RequiredM365DSCVersion -PrerequisitesPath $PrerequisitesPath
+        }
+        else
+        {
+            Write-Log -Object '[ERROR] Neither Version of PrerequisitesPath parameters was specified. Exiting!' -Failure
+            Write-Host '##vso[task.complete result=Failed;]Failed'
+            exit 10
+        }
+    }
+    $localModule = Get-Module -Name Microsoft365DSC -ListAvailable | Sort-Object -Property Version -Descending | Select-Object -First 1
+
+    if ($null -eq $localModule)
+    {
+        Write-Log -Object "Microsoft365DSC not installed. Exiting!"
+        return $null
+    }
+
+    Write-Log -Object "- Required version : $reqVersion"
+    Write-Log -Object "- Installed version: $($localModule.Version)"
+
+    Write-Log -Object ' '
+    Write-Log -Object "- Target Path: $TargetPath"
+    Write-Log -Object ' '
+
+    $dependencyFile = Join-Path -Path (Split-Path -Path $localModule.Path -Parent) -ChildPath 'Dependencies\Manifest.psd1'
+    if (Test-Path -Path $dependencyFile)
+    {
+        $dependencies = Import-PowerShellDataFile -Path $dependencyFile
+        $moduleSpec = @()
+        foreach ($dependency in ($dependencies.Dependencies | Where-Object { $_.PowerShellCore -ne $true }))
+        {
+            $module = $dependency.ModuleName
+            $moduleVersion = $dependency.RequiredVersion
+
+            Write-Log -Object "Adding module '$($module) ($($moduleVersion))' to download list"
+            $moduleSpec += '{0}={1}' -f $module, $moduleVersion
+        }
+
+        Write-Log -Object "Installing all modules"
+        $parameters = @{
+            Specification   = $moduleSpec
+            Destination     = $TargetPath
+            Update          = $true
+            NoProfileUpdate = $true
+            DestinationOnly = $true
+            PassThru        = $true
+        }
+
+        $oldProgressPreference = $progressPreference
+        $progressPreference = 'SilentlyContinue'
+
+        [array]$results = Install-ModuleFast @parameters
+
+        $installedModules = foreach ($result in $results) { "$($result.Name) ($($result.ModuleVersion))"}
+        Write-Log -Object "    -> Installed: $($installedModules -join " / ")"
+
+        $progressPreference = $oldProgressPreference
+
+        if ($null -ne $results)
+        {
+            return $true
+        }
+        else
+        {
+            return $false
+        }
+    }
+    else
+    {
+        Write-Log -Object "[ERROR] Unable to find dependency file '$dependencyFile'. Exiting!" -Failure
+        Write-Host '##vso[task.complete result=Failed;]Failed'
+        exit 10
+    }
 }

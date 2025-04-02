@@ -114,7 +114,8 @@ Write-Log -Object "Processing certificate: $encryptCertName"
 $secret = Get-AzKeyVaultSecret -VaultName $KeyVault -Name $encryptCertName -AsPlainText -ErrorAction SilentlyContinue
 if ($null -eq $secret)
 {
-    Write-Log -Object "[ERROR] Cannot find $encryptCertName in Azure KeyVault" -Failure
+    Write-Log -Object "[ERROR] Cannot find $encryptCertName in Azure KeyVault." -Failure
+    Write-Log -Object "[ERROR] Please make sure you have ran the 'Add Your Secrets to Key Vault' step in the whitepaper!" -Failure
     $foundError = $true
 }
 else
