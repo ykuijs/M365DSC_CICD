@@ -61,7 +61,7 @@ stages:
                   Set-CimInstance -InputObject $quotaConfiguration
                 errorActionPreference: 'Stop'
                 failOnStderr: true
-                workingDirectory: '$(Pipeline.Workspace)/M365Automation/DeployPackage'
+                workingDirectory: '$(Pipeline.Workspace)/Build MOF/DeployPackage'
 
             # Make sure all required modules are installed
             - task: AzurePowerShell@5
@@ -104,7 +104,7 @@ stages:
               displayName: 'Save Event Logs to Pipeline'
               condition: succeededOrFailed()
               inputs:
-                targetPath: '$(Pipeline.Workspace)/M365Automation/DeployPackage/Logs'
+                targetPath: '$(Pipeline.Workspace)/Build MOF/DeployPackage/Logs'
                 artifact: 'Logs'
                 publishLocation: 'pipeline'
                 parallel: true

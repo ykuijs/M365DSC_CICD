@@ -166,7 +166,8 @@
                 }
             }
         }
-        [Array]$permissions = Get-M365DSCCompiledPermissionList -ResourceNameList $resources -PermissionType 'Application' -AccessType 'Update'
+        $permissionsList = Get-M365DSCCompiledPermissionList -ResourceNameList $resources -PermissionType 'Application' -AccessType 'Update'
+        $permissions = $permissionsList.Permissions
 
         if ([String]::IsNullOrWhiteSpace($Workload) -or $Workload -eq 'SharePoint')
         {
