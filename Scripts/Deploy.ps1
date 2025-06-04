@@ -70,6 +70,16 @@ if ($msCloudLoginAssistantDebug)
     [Environment]::SetEnvironmentVariable('MSCLOUDLOGINASSISTANT_WRITETOEVENTLOG', 'true', 'Machine')
 }
 
+Write-Log -Object ' '
+Write-Log -Object '----------------------------------------------------------------'
+Write-Log -Object ' Removing all outdated versions of the dependencies'
+Write-Log -Object '----------------------------------------------------------------'
+Write-Log -Object ' '
+# Removing all versions of the dependencies that are not used by Microsoft365DSC.
+# This to prevent issues with the Microsoft365DSC module when the agents has other
+# versions of the dependencies installed.
+Uninstall-M365DSCOutdatedDependencies
+
 try
 {
     $deploymentSucceeded = $true
@@ -158,6 +168,15 @@ finally
 
         Write-Host '##vso[task.complete result=Failed;]Failed'
     }
+
+    Write-Log -Object ' '
+    Write-Log -Object '----------------------------------------------------------------'
+    Write-Log -Object ' Removing the deployed configuration from the LCM'
+    Write-Log -Object '----------------------------------------------------------------'
+    Write-Log -Object ' '
+    # This is to prevent issues in subsequent runs when using Self-Hosted agents
+    Remove-DscConfigurationDocument -Stage 'Current', 'Pending', 'Previous' -Force
+
     Write-Log -Object '---------------------------------------------------------'
     Write-Log -Object ' '
     Write-Log -Object '*********************************************************'
