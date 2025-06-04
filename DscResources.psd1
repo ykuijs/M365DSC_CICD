@@ -1,7 +1,7 @@
 ﻿@{
 	'M365DSC.CompositeResources' = 'latestMatchingMicrosoft365DSC'
 	'M365DSCTools'               = 'latest'
-	'Microsoft365DSC'            = '1.25.402.1'
+	'Microsoft365DSC'            = '1.25.528.1'
 
     # Generic modules
     'Pester'                     = 'latest'
