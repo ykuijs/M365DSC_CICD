@@ -951,7 +951,15 @@ function Install-DSCModulePrereqs
         $oldProgressPreference = $progressPreference
         $progressPreference = 'SilentlyContinue'
 
-        [array]$results = Install-ModuleFast @parameters
+        try
+        {
+            [array]$results = Install-ModuleFast @parameters
+        }
+        catch
+        {
+            Write-Log -Object "Error occurred during download: $($_.Exception.Message)" -Failure
+            return $false
+        }
 
         $installedModules = foreach ($result in $results) { "$($result.Name) ($($result.ModuleVersion))"}
         Write-Log -Object "    -> Installed: $($installedModules -join " / ")"
