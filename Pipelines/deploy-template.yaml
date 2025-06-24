@@ -105,6 +105,6 @@ stages:
               condition: succeededOrFailed()
               inputs:
                 targetPath: '$(Pipeline.Workspace)/M365Automation/DeployPackage/Logs'
-                artifact: 'Logs'
+                artifact: 'Logs-${{ env.Name }}'
                 publishLocation: 'pipeline'
                 parallel: true
