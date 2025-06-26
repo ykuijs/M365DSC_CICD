@@ -81,3 +81,13 @@ stages:
         failOnStderr: false
         workingDirectory: '$(Pipeline.Workspace)/Build MOF/DeployPackage'
       continueOnError: true
+
+    # Save the Event Logs to the Pipeline
+    - task: PublishPipelineArtifact@1
+      displayName: 'Save Event Logs to Pipeline'
+      condition: succeededOrFailed()
+      inputs:
+        targetPath: '$(Pipeline.Workspace)/Build MOF/DeployPackage/Logs'
+        artifact: 'Logs-compliance'
+        publishLocation: 'pipeline'
+        parallel: true
