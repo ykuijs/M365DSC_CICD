@@ -16,7 +16,7 @@
         $CertificatePath,
 
         [Parameter()]
-        [ValidateSet('Azure', 'AzureAD', 'AzureDevOps', 'Commerce', 'Defender', 'Exchange', 'Fabric', 'Intune', 'Office365', 'OneDrive', 'Planner', 'PowerPlatform', 'SecurityCompliance', 'Sentinel', 'ServicesHub', 'SharePoint', 'Teams')]
+        [ValidateSet('Azure', 'AzureAD', 'AzureDevOps', 'Commerce', 'Defender', 'Exchange', 'Fabric', 'Intune', 'Office365', 'OneDrive', 'Planner', 'PowerPlatform', 'SecurityCompliance', 'Sentinel', 'ServicesHub', 'SharePoint', 'Teams', 'Viva')]
         [System.String]
         $Workload
     )
@@ -163,6 +163,9 @@
                 }
                 'Teams' {
                     $resources = $allResources | Where-Object -FilterScript { $_ -like 'Teams*'}
+                }
+                'Viva' {
+                    $resources = $allResources | Where-Object -FilterScript { $_ -like 'Viva*'}
                 }
             }
         }

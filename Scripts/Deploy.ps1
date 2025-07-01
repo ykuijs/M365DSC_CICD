@@ -127,14 +127,16 @@ finally
         }
     )
 
+    $allLogs = Get-WinEvent -ListLog * -ErrorAction SilentlyContinue
+
     foreach ($log in $logs)
     {
         Write-Log -Object "Processing log: $($log.LogName)"
-        if ([System.Diagnostics.EventLog]::Exists($log.LogName))
+        if ($allLogs.LogName -contains $log.LogName)
         {
             $exportFile = Join-Path -Path $exportPath -ChildPath $log.FileName
             Get-WinEvent -LogName $log.LogName | Select-Object -Property RecordId,Id, MachineName, LevelDisplayName, ProviderName, TimeCreated, Message | Out-File -FilePath $exportFile -Encoding utf8
-            Write-Log -Object "  Log successfully exported"
+            Write-Log -Object "  Log successfully exported: $($log.FileName) "
         }
         else
         {

@@ -68,7 +68,6 @@ Copy-Item -Path (Join-Path -Path $rootDirectoryCICD -ChildPath 'DscResources.psd
 Copy-Item -Path (Join-Path -Path $rootDirectoryCICD -ChildPath 'PsExec.exe') -Destination $outputFolder
 Copy-Item -Path 'deploy.ps1' -Destination $outputFolder
 Copy-Item -Path 'supportfunctions.psm1' -Destination $outputFolder
-Copy-Item -Path 'checkdsccompliance.ps1' -Destination $outputFolder
 
 Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' Starting MOF compilation'
