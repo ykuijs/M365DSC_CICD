@@ -42,7 +42,13 @@
 
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification='Write-Host needed for Azure DevOps logging')]
 [CmdletBinding()]
-param (
+param
+(
+    [Parameter()]
+    [ValidateSet('Table', 'List')]
+    [System.String]
+    $ReportView = 'Table',
+
     [Parameter(Mandatory)]
     [System.Boolean]
     $UseMail = $false,
@@ -227,21 +233,59 @@ $htmlReport += '<br>'
 
 $htmlReport += '<H3>Environments</H3>'
 
-$report = '<table>'
-$report += '<tr><th>Environment</th><th>In Desired State</th><th>Error Count</th><th>Details</th></tr>'
-
-foreach ($environment in $checkResults.GetEnumerator())
+switch ($ReportView)
 {
-    if ($environment.Value.ErrorCount -gt 0)
-    {
-        $report += '<tr><td>{0}</td><td class=failed>False</td><td>{1}</td><td class=nocenter>{2}</td></tr>' -f $environment.Key, $environment.Value.ErrorCount, $environment.Value.ErroredResources
+    'List' {
+        $report = ''
+        foreach ($environment in $checkResults.GetEnumerator())
+        {
+            $envName    = $environment.Key
+            $errorCount = $environment.Value.ErrorCount
+            $report    += "<h3>$envName - Errors: $errorCount</h3>"
+
+            if ($errorCount -gt 0)
+            {
+                # Split the multiline ErroredResources into individual items
+                $resources = $environment.Value.ErroredResources -split ","
+                $report   += '<ul>'
+                foreach ($res in $resources)
+                {
+
+                    # Remove the first part in brackets and everything up to the first dash
+                    $res = $res -replace '^\[[^\]]+\]', ''
+
+                    # Highlight the part between start and ::
+                    $res = $res -replace '(?<=-)([^:]+)(?=::)', '<b>$1</b>'
+
+                    $report += "<li>$res</li>"
+                }
+                $report   += '</ul>'
+            }
+            else
+            {
+                $report += '<p>No issues detected.</p>'
+            }
+        }
     }
-    else
-    {
-        $report += '<tr><td>{0}</td><td>True</td><td>0</td><td class=nocenter>-</td></tr>' -f $environment.Key
+    'Table' {
+        $report = '<table>'
+        $report += '<tr><th>Environment</th><th>In Desired State</th><th>Error Count</th><th>Details</th></tr>'
+
+        foreach ($environment in $checkResults.GetEnumerator())
+        {
+            if ($environment.Value.ErrorCount -gt 0)
+            {
+                $report += '<tr><td>{0}</td><td class=failed>False</td><td>{1}</td><td class=nocenter>{2}</td></tr>' -f $environment.Key, $environment.Value.ErrorCount, $environment.Value.ErroredResources
+            }
+            else
+            {
+                $report += '<tr><td>{0}</td><td>True</td><td>0</td><td class=nocenter>-</td></tr>' -f $environment.Key
+            }
+        }
+        $report += '</table>'
     }
 }
-$report += '</table>'
+
 $htmlReport += $report
 $htmlReport += '<br>'
 
