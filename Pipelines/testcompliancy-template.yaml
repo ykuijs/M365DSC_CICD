@@ -96,8 +96,9 @@ stages:
         workingDirectory: '$(Pipeline.Workspace)/Build MOF/DeployPackage'
       continueOnError: true
 
+    # Save the Event Logs to the Pipeline
     - task: PublishPipelineArtifact@1
-      displayName: 'Publish Artifacts to Pipeline'
+      displayName: 'Save Event Logs to Pipeline'
       condition: succeededOrFailed()
       inputs:
         targetPath: '${{ variables.buildFolderName }}/'
