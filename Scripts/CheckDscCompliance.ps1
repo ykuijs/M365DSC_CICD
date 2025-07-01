@@ -9,6 +9,11 @@
     This script uses the created MOF files to check if the corresponding tenants are
     in compliance with these DSC configurations.
 
+.PARAMETER ReportView
+    Specifies the view of the compliance report. Valid values are 'Table' and 'List'.
+    Default is 'Table'.
+    'Table' will display the results in a table format, while 'List' will display them in a list format.
+
 .PARAMETER UseMail
     If set to $true, the script will send the compliance report via email.
 
