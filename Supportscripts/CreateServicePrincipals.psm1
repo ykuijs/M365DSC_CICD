@@ -16,7 +16,7 @@
         $CertificatePath,
 
         [Parameter()]
-        [ValidateSet('Azure', 'AzureAD', 'AzureDevOps', 'Commerce', 'Defender', 'Exchange', 'Fabric', 'Intune', 'Office365', 'OneDrive', 'Planner', 'PowerPlatform', 'SecurityCompliance', 'Sentinel', 'ServicesHub', 'SharePoint', 'Teams')]
+        [ValidateSet('Azure', 'AzureAD', 'AzureDevOps', 'Commerce', 'Defender', 'Exchange', 'Fabric', 'Intune', 'Office365', 'OneDrive', 'Planner', 'PowerPlatform', 'SecurityCompliance', 'Sentinel', 'ServicesHub', 'SharePoint', 'Teams', 'Viva')]
         [System.String]
         $Workload
     )
@@ -164,9 +164,13 @@
                 'Teams' {
                     $resources = $allResources | Where-Object -FilterScript { $_ -like 'Teams*'}
                 }
+                'Viva' {
+                    $resources = $allResources | Where-Object -FilterScript { $_ -like 'Viva*'}
+                }
             }
         }
-        [Array]$permissions = Get-M365DSCCompiledPermissionList -ResourceNameList $resources -PermissionType 'Application' -AccessType 'Update'
+        $permissionsList = Get-M365DSCCompiledPermissionList -ResourceNameList $resources -PermissionType 'Application' -AccessType 'Update'
+        $permissions = $permissionsList.Permissions
 
         if ([String]::IsNullOrWhiteSpace($Workload) -or $Workload -eq 'SharePoint')
         {

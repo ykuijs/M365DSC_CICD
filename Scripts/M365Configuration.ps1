@@ -21,6 +21,7 @@
         $servicesHubAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'ServicesHub' }
         $sharepointAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'SharePoint' }
         $teamsAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'Teams' }
+        $vivaAppCreds = $ConfigurationData.NonNodeData.AppCredentials | Where-Object -FilterScript { $_.Workload -eq 'Viva' }
 
         # Azure Composite Resource
         if ($null -ne $azureAppCreds -and $ConfigurationData.NonNodeData.Environment.UsedWorkloads.Azure -eq $true)
@@ -206,6 +207,17 @@
                 ApplicationId         = $teamsAppCreds.ApplicationId
                 TenantId              = $ConfigurationData.NonNodeData.Environment.TenantId
                 CertificateThumbprint = $teamsAppCreds.CertThumbprint
+            }
+        }
+
+        # Viva Composite Resource
+        if ($null -ne $vivaAppCreds -and $ConfigurationData.NonNodeData.Environment.UsedWorkloads.Viva -eq $true)
+        {
+            Viva 'Viva_Configuration'
+            {
+                ApplicationId         = $vivaAppCreds.ApplicationId
+                TenantId              = $ConfigurationData.NonNodeData.Environment.TenantId
+                CertificateThumbprint = $vivaAppCreds.CertThumbprint
             }
         }
     }

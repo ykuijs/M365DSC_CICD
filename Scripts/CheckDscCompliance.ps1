@@ -91,8 +91,11 @@ param (
 ######## SCRIPT VARIABLES ########
 
 $workingDirectory = $PSScriptRoot
+$outputFolder = Join-Path -Path $workingDirectory -ChildPath '..\..\Output'
+$artifactDirectory = Join-Path -Path $env:AGENT_BUILDDIRECTORY -ChildPath 'Build MOF\DeployPackage'
 
 $encounteredError = $false
+$msCloudLoginAssistantDebug = $false
 
 ######## START SCRIPT ########
 
@@ -120,14 +123,36 @@ if ($UseMail -eq $false -and $UseTeams -eq $false)
     exit 20
 }
 
+Write-Log -Object "Checking OutputFolder '$outputFolder'"
+if ((Test-Path -Path $outputFolder) -eq $false)
+{
+    $null = New-Item -Path $outputFolder -ItemType Directory
+}
+
+Write-Log -Object ' '
+Write-Log -Object '----------------------------------------------------------------'
+Write-Log -Object ' Removing all outdated versions of the dependencies'
+Write-Log -Object '----------------------------------------------------------------'
+Write-Log -Object ' '
+Uninstall-M365DSCOutdatedDependencies
+
+if ($msCloudLoginAssistantDebug)
+{
+    Write-Log -Object ' '
+    Write-Log -Object '---------------------------------------------------------'
+    Write-Log -Object ' Enable MSCloudLoginAssistant Debug Mode'
+    Write-Log -Object '---------------------------------------------------------'
+    [Environment]::SetEnvironmentVariable('MSCLOUDLOGINASSISTANT_WRITETOEVENTLOG', 'true', 'Machine')
+}
+
 Write-Log -Object ' '
 Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' Testing compliance on all environments'
 Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' '
-Write-Log -Object "Processing all MOF files in '$workingDirectory'"
+Write-Log -Object "Processing all MOF files in '$artifactDirectory'"
 
-$mofFiles = Get-ChildItem -Path $workingDirectory -Filter *.mof -Recurse
+$mofFiles = Get-ChildItem -Path $artifactDirectory -Filter *.mof -Recurse
 Write-Log -Object "- Found $($mofFiles.Count) MOF files"
 
 $checkResults = @{}
@@ -222,8 +247,62 @@ $htmlReport += '<br>'
 
 $htmlReport += '</body></html>'
 
+$outputFileName = "DSCComplianceReport_$($date).html"
+Write-Log -Object "Exporting HTML report to file '$outputFileName'"
+$outputReportFile = Join-Path -Path $outputFolder -ChildPath $outputFileName
+Set-Content -Path $outputReportFile -Value $htmlReport -Encoding UTF8
+
+Write-Log -Object ' '
+Write-Log -Object 'Full HTML report:'
+Write-Log -Object $htmlReport
+Write-Log -Object ' '
 
 Write-Log -Object 'Report created!'
+
+Write-Log -Object ' '
+Write-Log -Object '---------------------------------------------------------'
+Write-Log -Object ' Saving Logs'
+Write-Log -Object '---------------------------------------------------------'
+Write-Log -Object ' '
+$exportPath = Join-Path -Path $outputFolder -ChildPath 'Logs'
+if (Test-Path -Path $exportPath)
+{
+    Remove-Item -Path $exportPath -Recurse -Force
+}
+
+$null = New-Item -Path $exportPath -ItemType Directory -Force
+
+$logs = @(
+    @{
+        LogName = 'M365DSC'
+        FileName = 'M365DSC_Log.txt'
+    }
+    @{
+        LogName = 'Microsoft-Windows-DSC/Operational'
+        FileName = 'DSCOperational_Log.txt'
+    }
+    @{
+        LogName = 'MSCloudLoginAssistant'
+        FileName = 'MSCloudLoginAssistant_Log.txt'
+    }
+)
+
+$allLogs = Get-WinEvent -ListLog * -ErrorAction SilentlyContinue
+
+foreach ($log in $logs)
+{
+    Write-Log -Object "Processing log: $($log.LogName)"
+    if ($allLogs.LogName -contains $log.LogName)
+    {
+        $exportFile = Join-Path -Path $exportPath -ChildPath $log.FileName
+        Get-WinEvent -LogName $log.LogName -ErrorAction SilentlyContinue | Select-Object -Property RecordId, Id, MachineName, LevelDisplayName, ProviderName, TimeCreated, Message | Out-File -FilePath $exportFile -Encoding utf8
+        Write-Log -Object "  Log successfully exported"
+    }
+    else
+    {
+        Write-Log -Object "  [SKIPPED] Log not found"
+    }
+}
 
 if ($UseMail)
 {
@@ -233,9 +312,9 @@ if ($UseMail)
     Write-Log -Object '-----------------------------------------------------'
     Write-Log -Object ' '
 
-    Write-Log -Object 'Full HTML report:'
-    Write-Log -Object $htmlReport
-    Write-Log -Object ' '
+    # Write-Log -Object 'Full HTML report:'
+    # Write-Log -Object $htmlReport
+    # Write-Log -Object ' '
 
     # Construct URI and body needed for authentication
     Write-Log -Object 'Retrieving Authentication Token'
@@ -303,10 +382,6 @@ if ($UseTeams)
     Write-Log -Object '-----------------------------------------------------'
     Write-Log -Object ' '
 
-    Write-Log -Object 'Teams HTML message:'
-    Write-Log -Object $report
-    Write-Log -Object ' '
-
     if ($errorCount -gt 0)
     {
         # An error occurred during a check
@@ -351,24 +426,32 @@ if ($UseTeams)
         'ContentType' = 'application/json'
     }
 
-    try
+    if ([Uri]::IsWellFormedUriString($TeamsWebhook,'Absolute'))
     {
-        Write-Log -Object 'Trying to send Teams message'
-        $restResult = Invoke-RestMethod @parameters
-        if ($restResult -isnot [PSCustomObject] -or $restResult.isSuccessStatusCode -eq $false)
+        try
         {
-            Write-Log -Object '[ERROR] Error while sending Teams message:'
-            Write-Log -Object $restResult
+            Write-Log -Object 'Trying to send Teams message'
+            $restResult = Invoke-RestMethod @parameters
+            if ($restResult -isnot [PSCustomObject] -or $restResult.isSuccessStatusCode -eq $false)
+            {
+                Write-Log -Object '[ERROR] Error while sending Teams message:'
+                Write-Log -Object $restResult
+                $encounteredError = $true
+            }
+            else
+            {
+                Write-Log -Object 'Report sent!'
+            }
+        }
+        catch
+        {
+            Write-Log -Object "[ERROR] Error while sending Teams message: $($_.Exception.Message)" -Failure
             $encounteredError = $true
         }
-        else
-        {
-            Write-Log -Object 'Report sent!'
-        }
     }
-    catch
+    else
     {
-        Write-Log -Object "[ERROR] Error while sending Teams message: $($_.Exception.Message)" -Failure
+        Write-Log -Object "[ERROR] Provided TeamsWebhook URL is not a valid URL. Unable to send Teams message!" -Failure
         $encounteredError = $true
     }
 }
@@ -388,6 +471,7 @@ else
         Write-Log -Object ' ' -Failure
         Write-Log -Object " Environments with errors: $($errorCount) ($($erroredEnvironment -join ', '))" -Failure
     }
+    Write-Host '##vso[task.complete result=SucceededWithIssues;]Errrors encountered during compliance check'
 }
 Write-Log -Object '---------------------------------------------------------'
 Write-Log -Object ' '

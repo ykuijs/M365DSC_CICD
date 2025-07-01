@@ -10,11 +10,11 @@ resources:
 
 stages:
 - stage: M365DSCComplianceCheck
-  displayName: 'Microsoft365DSC compliance check'
+  displayName: 'Microsoft365DSC Compliance Check'
   dependsOn: []
   jobs:
   - job: CheckCompliance
-    displayName: 'Check compliance'
+    displayName: 'Check Compliance'
     dependsOn: []
     steps:
     # Clone the Data repository
@@ -46,17 +46,31 @@ stages:
           call winrm set winrm/config @{MaxEnvelopeSizekb="4096"} > null
           call winrm get winrm/config | find /i "MaxEnvelopeSizekb"
 
-    # Make sure all required modules are installed
-    - task: AzurePowerShell@5
-      displayName: 'Prepare modules'
+    # Configure WinRM/CIM memory settings
+    - task: PowerShell@2
+      displayName: 'Configure CIM memory settings'
       inputs:
-        ScriptType: 'FilePath'
-        ScriptPath: './CICD/Scripts/DeployModules.ps1'
-        ScriptArguments: '-PackageSourceLocation "${{ variables.packageSourceLocation }}" -PATToken "${{ variables.patToken }}" -DeployM365Prerequisites -BlobResourceGroup "${{ variables.blobResourceGroup }}" -BlobStorageAccount "${{ variables.blobStorageAccount }}" -BlobContainer "${{ variables.blobContainer }}"'
-        azurePowerShellVersion: 'latestVersion'
-        azureSubscription: '${{ variables.azureSubscription }}'
+        targetType: 'inline'
+        script: |
+          $quotaConfiguration = Get-CimInstance -Namespace Root -ClassName "__ProviderHostQuotaConfiguration"
+          $quotaConfiguration.MemoryAllHosts = 4 * 4GB
+          $quotaConfiguration.MemoryPerHost  = 3 * 4GB
+          $quotaConfiguration.HandlesPerHost = 8192
+          $quotaConfiguration.ThreadsPerHost = 512
+          Set-CimInstance -InputObject $quotaConfiguration
         errorActionPreference: 'Stop'
-        FailOnStandardError: false
+        failOnStderr: true
+
+    # Make sure all required modules are installed
+    - task: PowerShell@2
+      displayName: 'Prepare Agent (Install Modules)'
+      inputs:
+        targetType: 'filePath'
+        filePath: './CICD/Scripts/DeployModules.ps1'
+        arguments: '-DeployM365Prerequisites'
+        errorActionPreference: 'Stop'
+        failOnStderr: true
+        pwsh: true
 
     # Make sure all Secrets/Certificates are downloaded from the KeyVault and installed
     - task: AzurePowerShell@5
@@ -75,9 +89,19 @@ stages:
       displayName: 'Check configuration deviations'
       inputs:
         targetType: 'filePath'
-        filePath: '$(Pipeline.Workspace)/Build MOF/DeployPackage/CheckDscCompliance.ps1'
+        filePath: './CICD/Scripts/CheckDscCompliance.ps1'
         arguments: '-UseMail:$${{ variables.useMail }} -MailTenantId "${{ variables.mailTenantId }}" -MailAppId "${{ variables.mailAppId }}" -MailAppSecret "${{ variables.mailAppSecret }}" -MailFrom "${{ variables.mailFrom }}" -MailTo "${{ variables.mailTo }}" -UseTeams:$${{ variables.useTeams }} -TeamsWebhook "${{ variables.teamsWebhook }}"'
         errorActionPreference: 'Stop'
         failOnStderr: false
         workingDirectory: '$(Pipeline.Workspace)/Build MOF/DeployPackage'
       continueOnError: true
+
+    # Save the Event Logs to the Pipeline
+    - task: PublishPipelineArtifact@1
+      displayName: 'Save Event Logs to Pipeline'
+      condition: succeededOrFailed()
+      inputs:
+        targetPath: '${{ variables.buildFolderName }}/'
+        artifact: 'ComplianceResults'
+        publishLocation: 'pipeline'
+        parallel: true

@@ -70,6 +70,16 @@ if ($msCloudLoginAssistantDebug)
     [Environment]::SetEnvironmentVariable('MSCLOUDLOGINASSISTANT_WRITETOEVENTLOG', 'true', 'Machine')
 }
 
+Write-Log -Object ' '
+Write-Log -Object '----------------------------------------------------------------'
+Write-Log -Object ' Removing all outdated versions of the dependencies'
+Write-Log -Object '----------------------------------------------------------------'
+Write-Log -Object ' '
+# Removing all versions of the dependencies that are not used by Microsoft365DSC.
+# This to prevent issues with the Microsoft365DSC module when the agents has other
+# versions of the dependencies installed.
+Uninstall-M365DSCOutdatedDependencies
+
 try
 {
     $deploymentSucceeded = $true
@@ -117,14 +127,16 @@ finally
         }
     )
 
+    $allLogs = Get-WinEvent -ListLog * -ErrorAction SilentlyContinue
+
     foreach ($log in $logs)
     {
         Write-Log -Object "Processing log: $($log.LogName)"
-        if ([System.Diagnostics.EventLog]::Exists($log.LogName))
+        if ($allLogs.LogName -contains $log.LogName)
         {
             $exportFile = Join-Path -Path $exportPath -ChildPath $log.FileName
             Get-WinEvent -LogName $log.LogName | Select-Object -Property RecordId,Id, MachineName, LevelDisplayName, ProviderName, TimeCreated, Message | Out-File -FilePath $exportFile -Encoding utf8
-            Write-Log -Object "  Log successfully exported"
+            Write-Log -Object "  Log successfully exported: $($log.FileName) "
         }
         else
         {
@@ -158,6 +170,15 @@ finally
 
         Write-Host '##vso[task.complete result=Failed;]Failed'
     }
+
+    Write-Log -Object ' '
+    Write-Log -Object '----------------------------------------------------------------'
+    Write-Log -Object ' Removing the deployed configuration from the LCM'
+    Write-Log -Object '----------------------------------------------------------------'
+    Write-Log -Object ' '
+    # This is to prevent issues in subsequent runs when using Self-Hosted agents
+    Remove-DscConfigurationDocument -Stage 'Current', 'Pending', 'Previous' -Force
+
     Write-Log -Object '---------------------------------------------------------'
     Write-Log -Object ' '
     Write-Log -Object '*********************************************************'

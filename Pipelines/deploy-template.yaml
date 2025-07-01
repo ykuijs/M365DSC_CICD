@@ -61,19 +61,17 @@ stages:
                   Set-CimInstance -InputObject $quotaConfiguration
                 errorActionPreference: 'Stop'
                 failOnStderr: true
-                workingDirectory: '$(Pipeline.Workspace)/M365Automation/DeployPackage'
+                workingDirectory: '$(Pipeline.Workspace)/Build MOF/DeployPackage'
 
             # Make sure all required modules are installed
-            - task: AzurePowerShell@5
-              displayName: 'Prepare Modules'
+            - task: PowerShell@2
+              displayName: 'Prepare Agent (Install Modules)'
               inputs:
-                ScriptType: 'FilePath'
-                ScriptPath: './CICD/Scripts/DeployModules.ps1'
-                ScriptArguments: '-DeployM365Prerequisites'
-                azurePowerShellVersion: 'latestVersion'
-                azureSubscription: '${{ variables.azureSubscription }}'
+                targetType: 'filePath'
+                filePath: './CICD/Scripts/DeployModules.ps1'
+                arguments: '-DeployM365Prerequisites'
                 errorActionPreference: 'Stop'
-                FailOnStandardError: false
+                failOnStderr: true
                 pwsh: true
 
             # Make sure all Secrets/Certificates are downloaded from the KeyVault and installed
@@ -104,7 +102,7 @@ stages:
               displayName: 'Save Event Logs to Pipeline'
               condition: succeededOrFailed()
               inputs:
-                targetPath: '$(Pipeline.Workspace)/M365Automation/DeployPackage/Logs'
+                targetPath: '$(Pipeline.Workspace)/Build MOF/DeployPackage/Logs'
                 artifact: 'Logs-${{ env.Name }}'
                 publishLocation: 'pipeline'
                 parallel: true
