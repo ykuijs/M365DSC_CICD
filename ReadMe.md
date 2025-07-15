@@ -9,6 +9,17 @@ This is [the repository](https://github.com/ykuijs/M365DSC_CICD) for the CICD Fr
 
 # Changelog
 
+  - Fixed Test Compliancy pipeline
+    - This pipeline was not updated correctly in the previous v3.x releases. This is now corrected.
+    - Added possibility to change to a List view report. You can activate this by adding '-ReportView List' to the arguments in the 'Check configuration deviations' task in the 'testcompliancy-template.yaml' pipeline.
+  -	Generic code fixes/improvements:
+    - Added code to remove all versions of the dependencies. The new Azure DevOps agents contained newer versions of the PowerShell modules, which was causing issues. The code now ensures only the correct versions are installed on the agent.
+    - Added additional error handling for ModuleFast, so a proper error is displayed when Modulefast cannot download a module.
+    - Updated the "Prepare Agent" step in the Deploy pipeline to use the normal PowerShell task instead of the Azure PowerShell task.
+    - Remove the deployed configuration after deployment. This to make sure self-hosted agents will not run into issues when deploying a different configuration.
+    - Fixed issue where creating log artifacts failed when using multiple environments due to naming conflict.
+    - Updated code to support ObjectGraphTools v0.3.
+    - Added test to ValidateSecrets to also test for the correct certificate thumbprint.
 - v3.1 (2025-04-01) - Added various improvements to framework
   - Improved troubleshooting information collection
     - Configured the PR Validation pipeline to also upload the merged data files to the pipeline, so it can be used for troubleshooting.

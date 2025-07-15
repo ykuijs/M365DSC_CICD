@@ -95,12 +95,24 @@ foreach ($datafile in $dataFiles)
         $secret = Get-AzKeyVaultSecret -VaultName $KeyVault -Name $kvCertName -AsPlainText -ErrorAction SilentlyContinue
         if ($null -eq $secret)
         {
-            Write-Log -Object "[ERROR] Cannot find $kvCertName in Azure KeyVault" -Failure
+            Write-Log -Object "  [ERROR] Cannot find $kvCertName in Azure KeyVault" -Failure
             $foundError = $true
         }
         else
         {
-            Write-Log -Object "  Certificate $kvCertName found in Azure KeyVault"
+            Write-Log -Object "    Certificate $kvCertName found in Azure KeyVault. Checking thumbprint..."
+            $secretByte = [Convert]::FromBase64String($secret)
+            $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($secretByte, '', 'Exportable,MachineKeySet,PersistKeySet')
+
+            if ($cert.Thumbprint -ne $appcred.CertThumbprint)
+            {
+                Write-Log -Object "  [ERROR] Thumbprint of certificate $kvCertName in Azure KeyVault '$($cert.Thumbprint)' does not match the one in the data file '$($appcred.CertThumbprint)'" -Failure
+                $foundError = $true
+            }
+            else
+            {
+                Write-Log -Object "    Thumbprint of certificate $kvCertName matches the one in the data file: $($appcred.CertThumbprint)"
+            }
         }
         Write-Log -Object ' '
     }
