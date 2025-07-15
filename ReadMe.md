@@ -9,6 +9,7 @@ This is [the repository](https://github.com/ykuijs/M365DSC_CICD) for the CICD Fr
 
 # Changelog
 
+- v3.2 (2025-07-15) - Added various improvements to framework
   - Fixed Test Compliancy pipeline
     - This pipeline was not updated correctly in the previous v3.x releases. This is now corrected.
     - Added possibility to change to a List view report. You can activate this by adding '-ReportView List' to the arguments in the 'Check configuration deviations' task in the 'testcompliancy-template.yaml' pipeline.
